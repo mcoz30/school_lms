@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXAM BUILDER v3.3 - Saide Sande</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+    <style>
+        .custom-scroll::-webkit-scrollbar { width: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col font-sans overflow-hidden">
+
+    <div id="app" class="flex-1 flex flex-col h-full relative">
+        <!-- HEADER -->
+        <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-20">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-800 font-bold"><i class="fas fa-book"></i></div>
+                <div>
+                    <h1 class="font-bold leading-tight">EXAM BUILDER v3.3</h1>
+                    <p class="text-[10px] text-slate-300">created by: Saide Sande</p>
+                    <p class="text-[10px] font-mono font-bold text-yellow-400" id="status-indicator">Connecting...</p>
+                </div>
+            </div>
+            <button id="btn-logout" class="hidden text-xs bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-white transition">Logout</button>
+        </header>
+
+        <!-- ERROR BANNER -->
+        <div id="error-banner" class="hidden bg-red-600 text-white p-4 text-center text-sm font-bold">
+            <p>🛑 SECURITY ERROR: Domain Not Allowed</p>
+            <p class="font-normal text-xs mt-1">Go to Firebase Console > Authentication > Settings > Authorized Domains</p>
+            <p class="font-normal text-xs mt-1">Add this domain: <span id="current-domain" class="bg-black px-1">...</span></p>
+        </div>
+
+        <!-- VIEW 1: LANDING -->
+        <div id="view-landing" class="flex-1 flex items-center justify-center p-4 fade-in">
+            <div class="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center space-y-6">
+                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 text-3xl mx-auto"><i class="fas fa-user-graduate"></i></div>
+                <h2 class="text-xl font-bold">Select Portal</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="nav-student" class="p-4 border-2 border-slate-100 rounded-xl hover:border-blue-500 transition"><i class="fas fa-user text-2xl text-blue-500 mb-2"></i><div class="font-bold text-sm">Student</div></button>
+                    <button id="nav-teacher" class="p-4 border-2 border-slate-100 rounded-xl hover:border-orange-500 transition"><i class="fas fa-chalkboard-teacher text-2xl text-orange-500 mb-2"></i><div class="font-bold text-sm">Teacher</div></button>
+                </div>
+                <p class="text-xs text-slate-400">Teacher must be logged in for Student Portal to load data.</p>
+            </div>
+        </div>
+
+        <!-- VIEW 2: TEACHER LOGIN -->
+        <div id="view-teacher-login" class="hidden flex-1 flex items-center justify-center p-4 fade-in">
+            <div class="max-w-sm w-full bg-white rounded-xl shadow-lg p-6 relative">
+                <button id="close-login" class="absolute top-4 right-4 text-slate-400"><i class="fas fa-times"></i></button>
+                <div id="form-login">
+                    <h2 class="text-lg font-bold mb-4">Teacher Login</h2>
+                    <button id="do-google-login" class="w-full bg-white border border-slate-300 text-slate-700 font-bold py-3 rounded mb-4 hover:bg-slate-50 flex items-center justify-center gap-2 shadow-sm"><i class="fab fa-google text-red-500"></i> Sign in with Google</button>
+                    <div class="relative flex py-2 items-center"><div class="flex-grow border-t border-gray-300"></div><span class="flex-shrink-0 mx-4 text-gray-400 text-xs">OR EMAIL</span><div class="flex-grow border-t border-gray-300"></div></div>
+                    <input type="text" id="login-user" class="w-full p-3 border rounded mb-3 text-sm" placeholder="Username">
+                    <input type="password" id="login-pass" class="w-full p-3 border rounded mb-4 text-sm" placeholder="Password">
+                    <button id="do-login" class="w-full bg-slate-800 text-white font-bold py-2 rounded hover:bg-slate-700">Login</button>
+                    <div class="text-center mt-4 text-xs">New? <button id="show-register" class="text-blue-600 font-bold">Create Account</button></div>
+                </div>
+                <div id="form-register" class="hidden">
+                    <h2 class="text-lg font-bold mb-1">Create Account</h2>
+                    <p class="text-xs text-slate-500 mb-4">Saved to Cloud Database.</p>
+                    <input type="text" id="reg-name" class="w-full p-2 border rounded mb-2 text-sm" placeholder="Full Name">
+                    <input type="text" id="reg-user" class="w-full p-2 border rounded mb-2 text-sm" placeholder="Username">
+                    <input type="password" id="reg-pass" class="w-full p-2 border rounded mb-4 text-sm" placeholder="Password">
+                    <button id="do-register" class="w-full bg-green-600 text-white font-bold py-2 rounded hover:bg-green-700">Register</button>
+                    <div class="text-center mt-4 text-xs"><button id="cancel-register" class="text-slate-500">Cancel</button></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: TEACHER DASHBOARD -->
+        <div id="view-dashboard" class="hidden flex-1 flex overflow-hidden fade-in bg-slate-50">
+            <aside class="w-64 bg-white border-r flex flex-col z-10 hidden md:flex">
+                <div class="p-4 border-b">
+                    <div class="font-bold truncate" id="dash-name">Teacher</div>
+                    <div class="text-xs text-slate-500 truncate" id="dash-details">--</div>
+                    <div class="text-xs text-green-600 flex items-center gap-1 mt-1"><i class="fas fa-circle text-[8px]"></i> Online</div>
+                </div>
+                <nav class="flex-1 p-2 space-y-1 overflow-y-auto">
+                    <button id="tab-btn-students" class="w-full text-left px-4 py-3 rounded hover:bg-blue-50 text-sm font-medium"><i class="fas fa-user-plus w-6 text-slate-400"></i> Manage Students</button>
+                    <button id="tab-btn-curriculum" class="w-full text-left px-4 py-3 rounded hover:bg-blue-50 text-sm font-medium"><i class="fas fa-book w-6 text-slate-400"></i> Curriculum</button>
+                    <button id="tab-btn-manage" class="w-full text-left px-4 py-3 rounded hover:bg-blue-50 text-sm font-medium"><i class="fas fa-edit w-6 text-slate-400"></i> Questions</button>
+                    <button id="tab-btn-records" class="w-full text-left px-4 py-3 rounded hover:bg-blue-50 text-sm font-medium"><i class="fas fa-users w-6 text-slate-400"></i> Records</button>
+                    <button id="tab-btn-settings" class="w-full text-left px-4 py-3 rounded hover:bg-blue-50 text-sm font-medium"><i class="fas fa-cog w-6 text-slate-400"></i> Settings</button>
+                </nav>
+                <div class="p-4 border-t"><button id="do-sync" class="w-full bg-blue-100 text-blue-800 text-xs font-bold py-2 rounded hover:bg-blue-200"><i class="fas fa-cloud-upload-alt mr-1"></i> Force Save</button></div>
+            </aside>
+            <main class="flex-1 overflow-y-auto custom-scroll p-4 relative">
+                <button onclick="document.querySelector('aside').classList.toggle('hidden'); document.querySelector('aside').classList.toggle('absolute'); document.querySelector('aside').classList.toggle('h-full');" class="md:hidden absolute top-4 left-4 z-20 bg-white p-2 rounded shadow text-slate-600"><i class="fas fa-bars"></i></button>
+
+                <!-- TAB: STUDENTS -->
+                <div id="tab-students" class="tab-content h-full p-2">
+                    <h2 class="text-xl font-bold text-slate-800 mb-6 pl-12 md:pl-0">Student Registry</h2>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border mb-6">
+                        <h3 class="font-bold text-sm mb-4 text-blue-900">Register New Student</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+                            <input type="text" id="new-st-name" class="p-2 border rounded text-sm" placeholder="Student Name">
+                            <input type="text" id="new-st-lrn" class="p-2 border rounded text-sm" placeholder="LRN Number">
+                            <select id="new-st-course" class="p-2 border rounded text-sm bg-white"></select>
+                        </div>
+                        <button id="do-add-student" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold w-full md:w-auto">Register Student</button>
+                        <p class="text-[10px] text-slate-400 mt-2">* Students can only log in if they are registered here.</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+                        <table class="w-full text-sm text-left"><thead class="bg-slate-50 border-b text-xs uppercase text-slate-500"><tr><th class="p-3">Name</th><th class="p-3">LRN</th><th class="p-3">Assigned Course/Grade</th><th class="p-3 text-right">Action</th></tr></thead><tbody id="student-list-body" class="divide-y"></tbody></table>
+                        <div id="no-students-msg" class="p-6 text-center text-slate-400 text-sm hidden">No students registered yet.</div>
+                    </div>
+                </div>
+
+                <!-- TAB: CURRICULUM -->
+                <div id="tab-curriculum" class="hidden tab-content h-full p-2">
+                    <h2 class="text-xl font-bold text-slate-800 mb-6 pl-12 md:pl-0">Curriculum Setup</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-white p-4 rounded-lg shadow-sm border">
+                            <h3 class="font-bold text-sm mb-2 text-blue-900">1. Grade Level</h3>
+                            <div class="flex gap-2 mb-2"><input type="text" id="new-grade" class="flex-1 p-2 border rounded text-sm" placeholder="e.g. Grade 7"><button id="do-add-grade" class="bg-blue-600 text-white px-3 rounded text-sm font-bold hover:bg-blue-700">+</button></div>
+                            <div id="list-grade" class="space-y-1 max-h-40 overflow-y-auto"></div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm border">
+                            <h3 class="font-bold text-sm mb-2 text-orange-700">2. Quarter / Sem</h3>
+                            <p class="text-[10px] text-slate-400 mb-1">Select Grade First:</p>
+                            <select id="cur-grade-select" class="w-full p-2 border rounded text-sm mb-2 bg-slate-50 outline-none"></select>
+                            <div class="flex gap-2 mb-2"><input type="text" id="new-quarter" class="flex-1 p-2 border rounded text-sm" placeholder="e.g. 1st Quarter"><button id="do-add-quarter" class="bg-orange-500 text-white px-3 rounded text-sm font-bold hover:bg-orange-600">+</button></div>
+                            <div id="list-quarter" class="space-y-1 max-h-40 overflow-y-auto"></div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm border">
+                            <h3 class="font-bold text-sm mb-2 text-green-700">3. Subject</h3>
+                            <p class="text-[10px] text-slate-400 mb-1">Select Quarter First:</p>
+                            <div class="flex gap-2 mb-2"><select id="cur-quarter-select" class="flex-1 p-2 border rounded text-sm bg-slate-50 outline-none"></select></div>
+                            <div class="flex gap-2 mb-2"><input type="text" id="new-subject" class="flex-1 p-2 border rounded text-sm" placeholder="e.g. Math"><button id="do-add-subject" class="bg-green-600 text-white px-3 rounded text-sm font-bold hover:bg-green-700">+</button></div>
+                            <div id="list-subject" class="space-y-1 max-h-40 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border">
+                        <h3 class="font-bold text-sm mb-2 text-slate-700">4. Create Student Section / Course & Timer</h3>
+                        <p class="text-xs text-slate-400 mb-2">Check subjects below to bundle them. Set the exam timer.</p>
+                        <div class="flex flex-col md:flex-row gap-2 mb-4">
+                            <input type="text" id="new-course" class="flex-1 p-2 border rounded text-sm" placeholder="E.g., Grade 7 - Section A">
+                            <input type="number" id="new-course-time" class="w-32 p-2 border rounded text-sm" placeholder="Mins (e.g. 60)">
+                            <button id="do-add-course" class="bg-slate-700 text-white px-4 rounded text-sm font-bold hover:bg-slate-800">Save</button>
+                        </div>
+                        <div id="chk-subjects" class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4 text-xs bg-slate-50 p-2 rounded max-h-60 overflow-y-auto"></div>
+                        <div id="list-course" class="space-y-1"></div>
+                    </div>
+                </div>
+
+                <!-- TAB: QUESTIONS -->
+                <div id="tab-manage" class="hidden tab-content h-full p-2">
+                    <div class="flex justify-between items-center mb-2 pl-12 md:pl-0">
+                        <div><h2 class="text-xl font-bold">Manage Questions</h2><p class="text-[10px] text-slate-500 font-bold bg-yellow-50 p-1 rounded border border-yellow-200 inline-block mt-1"><i class="fas fa-info-circle"></i> Instruction: Select Grade, Period, and Subject below to configure.</p></div>
+                        <div class="flex gap-2">
+                             <button id="do-get-template" class="bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded font-bold shadow hover:bg-slate-300"><i class="fas fa-download mr-1"></i> Get Template</button>
+                             <input type="file" id="docx-upload" class="hidden" accept=".docx">
+                             <button onclick="document.getElementById('docx-upload').click()" class="bg-blue-600 text-white text-xs px-3 py-2 rounded font-bold shadow hover:bg-blue-700"><i class="fas fa-file-word mr-1"></i> Import .DOCX</button>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border mb-4 grid grid-cols-3 gap-2 text-xs">
+                        <div><label class="font-bold text-slate-400">1. Grade</label><select id="sel-grade" class="w-full p-2 border rounded bg-slate-50 mt-1"></select></div>
+                        <div><label class="font-bold text-slate-400">2. Period</label><select id="sel-quarter" class="w-full p-2 border rounded bg-slate-50 mt-1"></select></div>
+                        <div><label class="font-bold text-slate-400">3. Subject</label><select id="sel-subject" class="w-full p-2 border rounded bg-slate-50 mt-1"></select></div>
+                    </div>
+                    <div class="flex flex-col md:flex-row gap-4 h-[calc(100%-150px)]">
+                        <div class="w-full md:w-1/3 bg-white p-4 rounded border overflow-y-auto">
+                            <h3 class="font-bold text-sm mb-2">Manual Entry</h3>
+                            <textarea id="q-text" class="w-full p-2 border rounded text-sm mb-2 h-20" placeholder="Question Text"></textarea>
+                            <div class="space-y-1 mb-2"><input id="opt-a" class="w-full p-1 border rounded text-xs" placeholder="Option A"><input id="opt-b" class="w-full p-1 border rounded text-xs" placeholder="Option B"><input id="opt-c" class="w-full p-1 border rounded text-xs" placeholder="Option C"><input id="opt-d" class="w-full p-1 border rounded text-xs" placeholder="Option D"></div>
+                            <select id="correct-opt" class="w-full p-1 border rounded text-sm mb-2"><option value="A">Answer: A</option><option value="B">Answer: B</option><option value="C">Answer: C</option><option value="D">Answer: D</option></select>
+                            <button id="do-save-manual" class="w-full bg-green-600 text-white py-1 rounded text-sm font-bold hover:bg-green-700">Save Question</button>
+                        </div>
+                        <div class="flex-1 bg-white rounded border overflow-hidden flex flex-col"><div id="q-list" class="flex-1 overflow-y-auto custom-scroll"></div><div id="q-empty" class="p-10 text-center text-slate-400 text-sm">Select Grade, Period, and Subject first.</div></div>
+                    </div>
+                </div>
+
+                <!-- TAB: RECORDS -->
+                <div id="tab-records" class="hidden tab-content h-full p-2">
+                    <h2 class="text-xl font-bold mb-4 pl-12 md:pl-0">Student Records</h2>
+                    <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+                        <table class="w-full text-sm text-left"><thead class="bg-slate-50 border-b"><tr><th class="p-3">Name</th><th class="p-3">Course</th><th class="p-3">Score</th><th class="p-3">Date</th></tr></thead><tbody id="table-records"></tbody></table>
+                    </div>
+                </div>
+
+                <!-- TAB: SETTINGS -->
+                <div id="tab-settings" class="hidden tab-content h-full p-2">
+                    <h2 class="text-xl font-bold mb-4 pl-12 md:pl-0">Account Settings</h2>
+                    <div class="max-w-md bg-white p-6 rounded-lg shadow-sm border mb-4">
+                        <div class="mb-4"><label class="text-xs font-bold text-slate-500 uppercase">Full Name</label><input type="text" id="set-name" class="w-full p-2 border rounded mt-1"></div>
+                        <div class="mb-4"><label class="text-xs font-bold text-slate-500 uppercase">Grade Handled</label><input type="text" id="set-grade" class="w-full p-2 border rounded mt-1" placeholder="e.g. Grade 10"></div>
+                        <div class="mb-6"><label class="text-xs font-bold text-slate-500 uppercase">Subject Handled</label><input type="text" id="set-subject" class="w-full p-2 border rounded mt-1" placeholder="e.g. Science"></div>
+                        <button id="do-save-profile" class="w-full bg-blue-900 text-white font-bold py-2 rounded hover:bg-blue-800">Update Profile</button>
+                    </div>
+                    
+                    <div class="max-w-md bg-red-50 p-6 rounded-lg border border-red-200">
+                        <h3 class="text-red-800 font-bold mb-2">Danger Zone</h3>
+                        <p class="text-xs text-red-600 mb-4">Resetting the school year will delete ALL student records and student accounts. Questions will be kept.</p>
+                        <button id="do-reset-year" class="bg-red-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-red-700">End School Year (Clear Records)</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- VIEW 4: STUDENT LOGIN -->
+        <div id="view-student-login" class="hidden flex-1 flex items-center justify-center p-4 fade-in bg-slate-50">
+            <div class="max-w-md w-full bg-white rounded-xl shadow-lg p-6 relative">
+                <button id="close-student" class="absolute top-4 right-4 text-slate-400"><i class="fas fa-times"></i></button>
+                <h2 class="text-lg font-bold mb-4">Student Access</h2>
+                <div class="space-y-3">
+                    <input type="text" id="st-name" class="w-full p-3 border rounded text-sm" placeholder="Full Name">
+                    <input type="text" id="st-lrn" class="w-full p-3 border rounded text-sm" placeholder="LRN Number">
+                    <button id="do-student-login" class="w-full bg-blue-600 text-white font-bold py-3 rounded mt-2 hover:bg-blue-700">Enter Dashboard</button>
+                </div>
+                <p class="text-xs text-slate-400 mt-4 text-center">You must be registered by your teacher to access.</p>
+            </div>
+        </div>
+
+        <!-- VIEW 5: STUDENT DASHBOARD -->
+        <div id="view-student-dashboard" class="hidden flex-1 flex overflow-hidden fade-in bg-slate-50">
+            <main class="flex-1 overflow-y-auto custom-scroll p-4 max-w-4xl mx-auto w-full">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">Welcome, <span id="dash-st-name" class="text-blue-600">Student</span></h2>
+                        <p class="text-sm text-slate-500">LRN: <span id="dash-st-lrn" class="font-mono">--</span></p>
+                    </div>
+                    <button onclick="window.app.setMode('landing')" class="text-sm text-red-500 font-bold border border-red-200 px-3 py-1 rounded bg-white hover:bg-red-50">Exit</button>
+                </div>
+
+                <!-- RESULTS SECTION -->
+                <div class="bg-white rounded-xl shadow-sm border mb-6 overflow-hidden">
+                    <div class="p-4 border-b bg-green-50"><h3 class="font-bold text-green-800">✅ Completed Exams</h3></div>
+                    <div class="max-h-64 overflow-y-auto">
+                        <table class="w-full text-sm text-left"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="p-3">Course/Subject</th><th class="p-3">Score</th><th class="p-3">Date</th></tr></thead><tbody id="student-results-table" class="divide-y"></tbody></table>
+                        <div id="student-no-results" class="p-4 text-center text-slate-400 text-xs hidden">No exams taken yet.</div>
+                    </div>
+                </div>
+
+                <!-- TAKE EXAM SECTION -->
+                <div class="bg-white rounded-xl shadow-sm border p-6">
+                    <h3 class="font-bold text-slate-800 mb-4">Take a New Exam</h3>
+                    <div class="flex gap-2">
+                        <select id="st-course" class="flex-1 p-3 border rounded text-sm bg-slate-50 font-bold"></select>
+                        <button id="do-start-exam" class="bg-blue-600 text-white px-6 rounded font-bold hover:bg-blue-700">Start Exam</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- VIEW 6: EXAM PORTAL -->
+        <div id="view-exam" class="hidden flex-1 flex flex-col bg-white fade-in">
+            <header class="p-4 border-b flex justify-between items-center bg-slate-50 shrink-0">
+                <div>
+                    <h1 class="font-bold">Exam Portal</h1>
+                    <p class="text-xs text-slate-500" id="exam-student-info">--</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="font-mono font-bold text-xl text-slate-700" id="timer">00:00</div>
+                    <button id="do-exit-exam" class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 font-bold border border-red-200"><i class="fas fa-sign-out-alt"></i> Save & Exit</button>
+                </div>
+            </header>
+            
+            <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+                <!-- Question Area -->
+                <div class="flex-1 p-6 overflow-y-auto custom-scroll flex justify-center bg-slate-50">
+                    <div class="max-w-2xl w-full">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border mb-4">
+                            <div class="mb-6 border-b pb-4">
+                                <span class="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded" id="exam-tag">SUBJ</span>
+                                <!-- PASSAGE BOX -->
+                                <div id="exam-passage" class="hidden bg-slate-100 p-4 rounded mb-4 text-sm font-serif border border-slate-300 max-h-60 overflow-y-auto whitespace-pre-line mt-2"></div>
+                                <h2 class="text-xl font-medium mt-3" id="exam-q-text">Loading...</h2>
+                            </div>
+                            <div class="space-y-3" id="exam-opts"></div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-400 font-bold" id="exam-progress">1 / 10</span>
+                            <button id="do-next-q" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-sm">Next</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigator Area -->
+                <div class="w-full md:w-72 bg-white border-t md:border-t-0 md:border-l p-4 overflow-y-auto custom-scroll shrink-0">
+                    <h3 class="font-bold text-sm mb-4 text-slate-700 flex items-center gap-2"><i class="fas fa-th"></i> Question Map</h3>
+                    <div class="flex gap-3 text-[10px] mb-4 text-slate-500">
+                        <div class="flex items-center gap-1"><div class="w-3 h-3 bg-red-500 rounded"></div> Unanswered</div>
+                        <div class="flex items-center gap-1"><div class="w-3 h-3 bg-green-500 rounded"></div> Answered</div>
+                    </div>
+                    <div id="question-grid" class="grid grid-cols-5 gap-2"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- MODULE LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // CONFIG
+        const firebaseConfig = { apiKey: "AIzaSyA7Sa9kkTFLF_cHS00DPzo8l847awBkBms", authDomain: "ncae-exam.firebaseapp.com", projectId: "ncae-exam", storageBucket: "ncae-exam.firebasestorage.app", messagingSenderId: "560276612754", appId: "1:560276612754:web:29169fa8f0d4752c28284b" };
+        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app); const googleProvider = new GoogleAuthProvider();
+        const statusEl = document.getElementById('status-indicator'); const currentDomain = window.location.hostname;
+        
+        let state = { user: null, data: {}, courses: {}, timeLimits: {}, students: [], records: [], session: { q: [], a: {}, idx: 0, student: {} } };
+
+        // AUTH
+        async function fetchData() {
+            if(!state.user) return;
+            try {
+                const snap = await getDoc(doc(db,"teachers",state.user.uid));
+                if(snap.exists()) {
+                    const d = snap.data();
+                    state.data = d.examData ? JSON.parse(d.examData) : {};
+                    state.courses = d.courses ? JSON.parse(d.courses) : {};
+                    state.timeLimits = d.timeLimits ? JSON.parse(d.timeLimits) : {}; 
+                    state.records = d.records ? JSON.parse(d.records) : [];
+                    state.students = d.students ? JSON.parse(d.students) : []; 
+                    
+                    document.getElementById('dash-name').innerText = d.fullName || state.user.displayName || "Teacher";
+                    document.getElementById('set-name').value = d.fullName || state.user.displayName;
+                    document.getElementById('set-grade').value = d.gradeHandled || ""; document.getElementById('set-subject').value = d.subjectHandled || "";
+                    if(d.gradeHandled||d.subjectHandled) document.getElementById('dash-details').innerText = `${d.gradeHandled||''} • ${d.subjectHandled||''}`;
+                    refreshCurriculumUI(); renderManageQuestionsUI(); renderStudentRegistry();
+                }
+            } catch(e){console.error(e);}
+        }
+        async function syncCloud() { 
+            if(!state.user)return; 
+            const p = {
+                examData:JSON.stringify(state.data), courses:JSON.stringify(state.courses), 
+                timeLimits:JSON.stringify(state.timeLimits), records:JSON.stringify(state.records), 
+                students:JSON.stringify(state.students), lastSync:new Date().toISOString()
+            }; 
+            await setDoc(doc(db,"teachers",state.user.uid), p, {merge:true}); 
+        }
+        async function saveProfile() { if(!state.user)return; try{ await setDoc(doc(db,"teachers",state.user.uid), {fullName:document.getElementById('set-name').value, gradeHandled:document.getElementById('set-grade').value, subjectHandled:document.getElementById('set-subject').value}, {merge:true}); alert("Updated!"); fetchData(); } catch(e){alert(e.message);} }
+        async function resetYear() {
+            if(confirm("DANGER: Are you sure you want to end the school year? This will DELETE all student records and student accounts. Questions will be kept.")){
+                state.records = [];
+                state.students = [];
+                syncCloud();
+                alert("School year reset. Records cleared.");
+                location.reload();
+            }
+        }
+        function login() { signInWithEmailAndPassword(auth, document.getElementById('login-user').value+"@ncae.com", document.getElementById('login-pass').value).then(()=>setMode('dashboard')).catch(e=>alert(e.message)); }
+        function register() { createUserWithEmailAndPassword(auth, document.getElementById('reg-user').value+"@ncae.com", document.getElementById('reg-pass').value).then(c=>{ return setDoc(doc(db,"teachers",c.user.uid), {fullName:document.getElementById('reg-name').value, username:document.getElementById('reg-user').value, examData:"{}", courses:"{}", records:"[]"}); }).then(()=>{ alert("Registered!"); setMode('dashboard'); }).catch(e=>alert(e.message)); }
+
+        // MANAGE STUDENTS
+        function addStudent() {
+            const n = document.getElementById('new-st-name').value;
+            const l = document.getElementById('new-st-lrn').value;
+            const c = document.getElementById('new-st-course').value;
+            if(!n || !l || !c) return alert("Fill all fields");
+            state.students.push({ name: n, lrn: l, course: c });
+            syncCloud(); renderStudentRegistry();
+            document.getElementById('new-st-name').value = ""; document.getElementById('new-st-lrn').value = "";
+        }
+        function delStudent(idx) { if(confirm("Remove student?")) { state.students.splice(idx, 1); syncCloud(); renderStudentRegistry(); } }
+        function renderStudentRegistry() {
+            const tbody = document.getElementById('student-list-body'); tbody.innerHTML = "";
+            const sel = document.getElementById('new-st-course'); sel.innerHTML = "<option value=''>Select Assigned Course</option>";
+            Object.keys(state.courses).forEach(k => sel.innerHTML += `<option value="COURSE:${k}">${k}</option>`);
+            Object.keys(state.data).forEach(k => { if(!state.courses[k]) sel.innerHTML += `<option value="GRADE:${k}">${k}</option>`; });
+
+            if(state.students.length === 0) { document.getElementById('no-students-msg').classList.remove('hidden'); } 
+            else {
+                document.getElementById('no-students-msg').classList.add('hidden');
+                state.students.forEach((s, i) => {
+                    const row = document.createElement('tr'); row.className = "border-b hover:bg-slate-50";
+                    row.innerHTML = `<td class="p-3 font-bold">${s.name}</td><td class="p-3 font-mono">${s.lrn}</td><td class="p-3 text-xs bg-blue-50 text-blue-700 rounded">${s.course.split(':')[1]||s.course}</td><td class="p-3 text-right"><button class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button></td>`;
+                    row.querySelector('button').onclick = () => delStudent(i);
+                    tbody.appendChild(row);
+                });
+            }
+        }
+
+        // CURRICULUM
+        function refreshCurriculumUI() { renderGradeList(); updateCurGradeSelect(); renderCourseList(); renderAllSubjectsCheckbox(); }
+        function addGrade() { const n=document.getElementById('new-grade').value; if(n && !state.data[n]) { state.data[n]={}; syncCloud(); refreshCurriculumUI(); document.getElementById('new-grade').value=""; } }
+        function addQuarter() { const g=document.getElementById('cur-grade-select').value, n=document.getElementById('new-quarter').value; if(g&&n&&!state.data[g][n]) { state.data[g][n]={}; syncCloud(); renderQuarterList(); updateCurQuarterSelect(); document.getElementById('new-quarter').value=""; } }
+        function addSubject() { const g=document.getElementById('cur-grade-select').value, q=document.getElementById('cur-quarter-select').value, n=document.getElementById('new-subject').value; if(g&&q&&n&&!state.data[g][q][n]) { state.data[g][q][n]=[]; syncCloud(); renderSubjectList(); document.getElementById('new-subject').value=""; renderAllSubjectsCheckbox(); } }
+        
+        function delGrade(g) { if(confirm("Del "+g+"?")) { delete state.data[g]; syncCloud(); refreshCurriculumUI(); } }
+        function delQuarter(g,q) { if(confirm("Del "+q+"?")) { delete state.data[g][q]; syncCloud(); renderQuarterList(); updateCurQuarterSelect(); } }
+        function delSubject(g,q,s) { if(confirm("Del "+s+"?")) { delete state.data[g][q][s]; syncCloud(); renderSubjectList(); renderAllSubjectsCheckbox(); } }
+
+        function renderGradeList() { const d=document.getElementById('list-grade'); d.innerHTML=""; Object.keys(state.data).forEach(k=>{ const r=document.createElement('div'); r.className="flex justify-between p-1 bg-slate-50 text-xs rounded"; r.innerHTML=`<span>${k}</span><button class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>`; r.querySelector('button').onclick=()=>delGrade(k); d.appendChild(r); }); }
+        function updateCurGradeSelect() { const s=document.getElementById('cur-grade-select'); s.innerHTML="<option value=''>Select Grade</option>"+Object.keys(state.data).map(k=>`<option value="${k}">${k}</option>`).join(''); s.onchange=()=>{renderQuarterList(); updateCurQuarterSelect();} }
+        function renderQuarterList() { const g=document.getElementById('cur-grade-select').value, d=document.getElementById('list-quarter'); d.innerHTML=""; if(g&&state.data[g]) Object.keys(state.data[g]).forEach(k=>{ const r=document.createElement('div'); r.className="flex justify-between p-1 bg-slate-50 text-xs rounded"; r.innerHTML=`<span>${k}</span><button class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>`; r.querySelector('button').onclick=()=>delQuarter(g,k); d.appendChild(r); }); }
+        function updateCurQuarterSelect() { const g=document.getElementById('cur-grade-select').value, s=document.getElementById('cur-quarter-select'); s.innerHTML="<option value=''>Select Quarter</option>"; if(g&&state.data[g]) Object.keys(state.data[g]).forEach(k=>s.innerHTML+=`<option value="${k}">${k}</option>`); s.onchange=renderSubjectList; }
+        function renderSubjectList() { const g=document.getElementById('cur-grade-select').value, q=document.getElementById('cur-quarter-select').value, d=document.getElementById('list-subject'); d.innerHTML=""; if(g&&q&&state.data[g][q]) Object.keys(state.data[g][q]).forEach(k=>{ const r=document.createElement('div'); r.className="flex justify-between p-1 bg-slate-50 text-xs rounded"; r.innerHTML=`<span>${k}</span><button class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>`; r.querySelector('button').onclick=()=>delSubject(g,q,k); d.appendChild(r); }); }
+
+        function renderAllSubjectsCheckbox() { const c=document.getElementById('chk-subjects'); c.innerHTML=""; Object.keys(state.data).forEach(g=>{ Object.keys(state.data[g]).forEach(q=>{ Object.keys(state.data[g][q]).forEach(s=>{ const v=`${g} > ${q} > ${s}`; c.innerHTML+=`<label class="flex items-center gap-1 p-1"><input type="checkbox" value="${v}" class="c-chk"> ${g}-${q}-${s}</label>`; }); }); }); }
+        
+        function addCourse() { 
+            const n=document.getElementById('new-course').value, tm=document.getElementById('new-course-time').value || 60;
+            if(n){ state.courses[n]=Array.from(document.querySelectorAll('.c-chk:checked')).map(x=>x.value); state.timeLimits[n] = parseInt(tm); syncCloud(); renderCourseList(); document.getElementById('new-course').value=""; } 
+        }
+        function renderCourseList() { 
+            const d=document.getElementById('list-course'); d.innerHTML=""; 
+            Object.keys(state.courses).forEach(k=>{ 
+                const t = state.timeLimits[k] || 60; const r=document.createElement('div'); r.className="p-2 border rounded bg-slate-50 flex justify-between text-xs"; 
+                r.innerHTML=`<span><b>${k}</b> (${t} mins)</span><button class="text-red-400"><i class="fas fa-trash"></i></button>`; 
+                r.querySelector('button').onclick=()=>{if(confirm("Del?")){delete state.courses[k]; delete state.timeLimits[k]; syncCloud(); renderCourseList();}}; 
+                d.appendChild(r); 
+            }); 
+        }
+
+        // MANAGE Qs
+        function renderManageQuestionsUI() { const s=document.getElementById('sel-grade'); s.innerHTML="<option value=''>Select Grade</option>"+Object.keys(state.data).map(k=>`<option value="${k}">${k}</option>`).join(''); s.onchange=updateManageQuarter; }
+        function updateManageQuarter() { const g=document.getElementById('sel-grade').value, s=document.getElementById('sel-quarter'); s.innerHTML="<option value=''>Select Period</option>"; if(g&&state.data[g]) Object.keys(state.data[g]).forEach(k=>s.innerHTML+=`<option value="${k}">${k}</option>`); s.onchange=updateManageSubject; }
+        function updateManageSubject() { const g=document.getElementById('sel-grade').value, q=document.getElementById('sel-quarter').value, s=document.getElementById('sel-subject'); s.innerHTML="<option value=''>Select Subject</option>"; if(g&&q&&state.data[g][q]) Object.keys(state.data[g][q]).forEach(k=>s.innerHTML+=`<option value="${k}">${k}</option>`); s.onchange=renderQuestions; }
+        function saveManualQ() { const g=document.getElementById('sel-grade').value, q=document.getElementById('sel-quarter').value, s=document.getElementById('sel-subject').value; if(!g||!q||!s) return alert("Select Filters"); const t=document.getElementById('q-text').value, a=document.getElementById('opt-a').value; if(!t||!a) return alert("Fill Q & Opts"); state.data[g][q][s].push({text:t, options:{A:a,B:document.getElementById('opt-b').value,C:document.getElementById('opt-c').value,D:document.getElementById('opt-d').value}, correct:document.getElementById('correct-opt').value}); syncCloud(); renderQuestions(); document.getElementById('q-text').value=""; }
+        function renderQuestions() { const g=document.getElementById('sel-grade').value, q=document.getElementById('sel-quarter').value, s=document.getElementById('sel-subject').value, l=document.getElementById('q-list'); l.innerHTML=""; if(!g||!q||!s||!state.data[g][q][s]) { document.getElementById('q-empty').classList.remove('hidden'); return; } document.getElementById('q-empty').classList.add('hidden'); state.data[g][q][s].forEach((it,i)=>{ const r=document.createElement('div'); r.className="p-3 border-b flex justify-between group"; r.innerHTML=`<div class="text-sm"><span class="font-bold">${i+1}.</span> ${it.text}</div><button class="text-red-300 hover:text-red-500"><i class="fas fa-trash"></i></button>`; r.querySelector('button').onclick=()=>{if(confirm("Del?")){state.data[g][q][s].splice(i,1); syncCloud(); renderQuestions();}}; l.appendChild(r); }); }
+        
+        // TEMPLATE GENERATOR (Fixed)
+        function downloadTemplate() {
+            const t = `FORMAT GUIDE:
+
+For items 1-2:
+(Put passage text here. The system detects text before a number as a passage.)
+Jose Rizal is the national hero of the Philippines.
+
+1. Who is the national hero?
+A. Andres Bonifacio
+B. Jose Rizal
+C. Apolinario Mabini
+D. Emilio Aguinaldo
+Answer: B
+
+2. What book did he write?
+A. El Filibusterismo
+B. Noli Me Tangere
+C. The Bible
+D. Harry Potter
+Answer: B
+
+3. Simple question?
+A. Yes
+B. No
+C. Maybe
+D. Sure
+Answer: A
+`;
+            const b = new Blob([t],{type:"text/plain"});
+            const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download="Exam_Template.txt"; a.click();
+        }
+
+        // DOCX IMPORT
+        function importDocx(inp) {
+            const g = document.getElementById('sel-grade').value;
+            const q = document.getElementById('sel-quarter').value;
+            const s = document.getElementById('sel-subject').value;
+            if(!g||!q||!s) return alert("Select Filters First");
+            
+            mammoth.extractRawText({arrayBuffer: inp.files[0]}).then(r => {
+                const questions = parseDocText(r.value);
+                if(questions.length === 0) return alert("No questions found.");
+                if(!state.data[g][q][s]) state.data[g][q][s] = [];
+                state.data[g][q][s].push(...questions); 
+                syncCloud(); 
+                alert("Imported "+questions.length+" questions!"); 
+                renderQuestions();
+            });
+        }
+
+        function parseDocText(txt) {
+            const lines = txt.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+            const questions = [];
+            let currentQ = null;
+            let buffer = "";
+            let activePassage = "";
+            let passageRangeEnd = 0;
+
+            const regex = {
+                qStart: /^(\d+)[\.\)]\s*(.+)/,
+                opt: /^([A-D])[\.\)]\s*(.+)/i,
+                ans: /^(?:Ans|Answer|Key).*([A-D])/i,
+                range: /items?\s+(\d+)\s*(?:-|to|through)\s*(\d+)/i
+            };
+
+            lines.forEach(line => {
+                const rangeMatch = line.match(regex.range);
+                if (rangeMatch) passageRangeEnd = parseInt(rangeMatch[2]);
+
+                const qMatch = line.match(regex.qStart);
+                if (qMatch) {
+                    if (currentQ) questions.push(currentQ);
+                    const qNum = parseInt(qMatch[1]);
+                    if (buffer) { activePassage = buffer; buffer = ""; }
+                    if (passageRangeEnd > 0 && qNum > passageRangeEnd) { activePassage = ""; passageRangeEnd = 0; }
+                    currentQ = { text: qMatch[2], options: {}, correct: 'A', passage: activePassage };
+                    return;
+                }
+                const optMatch = line.match(regex.opt);
+                if (optMatch && currentQ) { currentQ.options[optMatch[1].toUpperCase()] = optMatch[2]; return; }
+                const ansMatch = line.match(regex.ans);
+                if (ansMatch && currentQ) { currentQ.correct = ansMatch[1].toUpperCase(); return; }
+                if (buffer) buffer += "\n" + line; else buffer = line;
+            });
+            if (currentQ) questions.push(currentQ);
+            return questions;
+        }
+
+        // --- STUDENT DASHBOARD LOGIC ---
+        function enterStudentDashboard() {
+            const n = document.getElementById('st-name').value.trim();
+            const l = document.getElementById('st-lrn').value.trim();
+            if(!n || !l) return alert("Fill Name/LRN");
+            const match = state.students.find(s => s.lrn === l && s.name.toLowerCase() === n.toLowerCase());
+            if(!match) return alert("Access Denied: Not registered.");
+            state.session.student = { name: match.name, lrn: match.lrn, assignedCourse: match.course };
+            document.getElementById('dash-st-name').innerText = match.name;
+            document.getElementById('dash-st-lrn').innerText = match.lrn;
+            renderStudentResults(match.lrn);
+            renderStudentExamDropdown(match.course);
+            setMode('student-dashboard');
+        }
+        function renderStudentResults(lrn) {
+            const t = document.getElementById('student-results-table'); t.innerHTML = "";
+            const myRecords = state.records.filter(r => r.lrn === lrn);
+            if(myRecords.length === 0) document.getElementById('student-no-results').classList.remove('hidden');
+            else {
+                document.getElementById('student-no-results').classList.add('hidden');
+                myRecords.forEach(r => t.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="p-3 font-medium">${r.course}</td><td class="p-3 font-bold text-blue-600">${r.score}</td><td class="p-3 text-xs text-slate-500">${r.date}</td></tr>`);
+            }
+        }
+        function renderStudentExamDropdown(assignedCourse) { 
+            const s = document.getElementById('st-course'); s.innerHTML = ""; 
+            const [type, val] = assignedCourse.split(':');
+            const opt = document.createElement('option'); opt.value = assignedCourse; opt.text = val + " (Your Exam)"; s.appendChild(opt);
+        }
+        function startExam() {
+            const cVal = document.getElementById('st-course').value;
+            if(!cVal) return alert("Select exam");
+            state.session.course = cVal.split(':')[1]; state.session.q = []; state.session.a = {}; state.session.idx = 0;
+            const [type, key] = cVal.split(':');
+            let limit = 60; 
+            if(type === 'COURSE') { 
+                (state.courses[key]||[]).forEach(path=>{ const [g,q,s]=path.split(' > '); if(state.data[g]&&state.data[g][q]&&state.data[g][q][s]) state.data[g][q][s].forEach(qu=>state.session.q.push({...qu, tag:s})); });
+                limit = state.timeLimits[key] || 60;
+            } else if(type === 'GRADE') { 
+                const gd=state.data[key]; if(gd) Object.keys(gd).forEach(qKey=>Object.keys(gd[qKey]).forEach(sKey=>gd[qKey][sKey].forEach(qu=>state.session.q.push({...qu, tag:`${sKey}(${qKey})`})))); 
+            }
+            if(state.session.q.length===0) return alert("No Questions");
+            state.session.seconds = limit * 60; clearInterval(window.examTimer); window.examTimer = setInterval(updateTimer, 1000);
+            setMode('exam'); renderExamQ();
+        }
+        function updateTimer() {
+            state.session.seconds--;
+            const m = Math.floor(state.session.seconds / 60), s = state.session.seconds % 60;
+            document.getElementById('timer').innerText = `${m}:${s < 10 ? '0'+s : s}`;
+            if(state.session.seconds <= 0) { clearInterval(window.examTimer); alert("Time's Up!"); finishExam(true); }
+        }
+        function renderNavigator() {
+            const grid = document.getElementById('question-grid'); grid.innerHTML = "";
+            state.session.q.forEach((_, i) => {
+                const btn = document.createElement('button');
+                const isAns = state.session.a[i] !== undefined;
+                const isCurr = i === state.session.idx;
+                let cls = "w-8 h-8 rounded text-xs font-bold flex items-center justify-center transition ";
+                cls += isAns ? "bg-green-500 text-white " : "bg-red-500 text-white ";
+                if (isCurr) cls += "ring-4 ring-blue-300 scale-110 z-10 ";
+                btn.className = cls; btn.innerText = i + 1; btn.onclick = () => window.app.jumpToQ(i);
+                grid.appendChild(btn);
+            });
+        }
+        function renderExamQ() { 
+            const q=state.session.q[state.session.idx]; 
+            document.getElementById('exam-q-text').innerText=q.text; 
+            document.getElementById('exam-tag').innerText=q.tag; 
+            document.getElementById('exam-progress').innerText=`${state.session.idx+1}/${state.session.q.length}`; 
+            
+            // Render Passage
+            const passBox = document.getElementById('exam-passage');
+            if(q.passage) { passBox.innerText = q.passage; passBox.classList.remove('hidden'); } 
+            else { passBox.classList.add('hidden'); }
+
+            const nextBtn = document.getElementById('do-next-q');
+            if(state.session.idx === state.session.q.length - 1) { nextBtn.innerText = "Finish Exam"; nextBtn.classList.replace('bg-blue-600', 'bg-green-600'); } 
+            else { nextBtn.innerText = "Next"; nextBtn.classList.replace('bg-green-600', 'bg-blue-600'); }
+
+            const d=document.getElementById('exam-opts'); d.innerHTML=""; 
+            ['A','B','C','D'].forEach(o=>{ if(q.options[o]){ const sel=state.session.a[state.session.idx]===o?'bg-slate-800 text-white':'border-slate-200'; d.innerHTML+=`<button class="w-full text-left p-3 border rounded ${sel}" onclick="window.app.ans('${o}')">${o}. ${q.options[o]}</button>`; }}); 
+            renderNavigator();
+        }
+        function nextQ() { if(state.session.idx<state.session.q.length-1){state.session.idx++;renderExamQ();} else { finishExam(false); } }
+        function finishExam(force = false) {
+            if(force || confirm("Submit Exam?")){ 
+                clearInterval(window.examTimer);
+                let sc=0; state.session.q.forEach((q,i)=>{if(state.session.a[i]===q.correct)sc++}); 
+                state.records.push({name:state.session.student.name, lrn:state.session.student.lrn, course:state.session.student.assignedCourse.split(':')[1], score:`${sc}/${state.session.q.length}`, date:new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString()}); 
+                if(state.user) syncCloud(); 
+                if(!force) alert("Exam Submitted!\nScore: "+sc); 
+                renderStudentResults(state.session.student.lrn); setMode('student-dashboard'); 
+            }
+        }
+        function renderRecords() { const t=document.getElementById('table-records'); t.innerHTML=""; state.records.forEach(r=>t.innerHTML+=`<tr class="border-b"><td class="p-3">${r.name}</td><td class="p-3">${r.course}</td><td class="p-3">${r.score}</td><td class="p-3">${r.date}</td></tr>`); }
+
+        // BINDINGS
+        const bind=(id,fn)=>{const el=document.getElementById(id);if(el)el.addEventListener('click',fn)};
+        const bindCh=(id,fn)=>{const el=document.getElementById(id);if(el)el.addEventListener('change',fn)};
+        bind('do-google-login', ()=>signInWithPopup(auth,googleProvider).then(r=>{alert("Hi "+r.user.displayName);setMode('dashboard')}).catch(e=>{if(e.code==='auth/unauthorized-domain'){document.getElementById('error-banner').classList.remove('hidden');document.getElementById('current-domain').innerText=currentDomain;}else alert(e.message);}));
+        bind('do-login', login); bind('do-register', register); bind('btn-logout', ()=>signOut(auth));
+        bind('nav-teacher', ()=>setMode('teacher-login')); bind('nav-student', ()=>setMode('student-login'));
+        bind('do-student-login', enterStudentDashboard); 
+        bind('show-register', ()=>toggleRegister(true)); bind('cancel-register', ()=>toggleRegister(false));
+        bind('close-login', ()=>setMode('landing')); bind('close-student', ()=>setMode('landing'));
+        bind('tab-btn-curriculum', ()=>setTab('curriculum')); bind('tab-btn-manage', ()=>setTab('manage')); bind('tab-btn-records', ()=>setTab('records')); bind('tab-btn-settings', ()=>setTab('settings')); bind('tab-btn-students', ()=>setTab('students'));
+        bind('do-sync', syncCloud); bind('do-save-profile', saveProfile); bind('do-reset-year', resetYear);
+        bind('do-add-grade', addGrade); bind('do-add-quarter', addQuarter); bind('do-add-subject', addSubject); bind('do-add-course', addCourse); bind('do-save-manual', saveManualQ); bind('do-add-student', addStudent);
+        bindCh('docx-upload', e=>importDocx(e.target)); bind('do-start-exam', startExam); bind('do-next-q', nextQ); bind('do-exit-exam', () => finishExam(false));
+        bind('do-get-template', downloadTemplate); // New bind
+        window.app.jumpToQ = (i) => { state.session.idx = i; renderExamQ(); };
+
+        function setMode(m){document.querySelectorAll('[id^="view-"]').forEach(e=>e.classList.add('hidden'));document.getElementById(`view-${m}`).classList.remove('hidden');}
+        function toggleRegister(s){document.getElementById('form-login').classList.toggle('hidden',s);document.getElementById('form-register').classList.toggle('hidden',!s);}
+        function setTab(t){document.querySelectorAll('.tab-content').forEach(e=>e.classList.add('hidden'));document.getElementById(`tab-${t}`).classList.remove('hidden');if(t==='records')renderRecords(); if(t==='students')renderStudentRegistry();}
+        window.app={ans:(o)=>{state.session.a[state.session.idx]=o;renderExamQ()}, jumpToQ: (i)=>{state.session.idx=i;renderExamQ()}, nextQ, logout:()=>signOut(auth), delGrade, delQuarter, delSubject, setMode};
+
+        onAuthStateChanged(auth, u => {
+            state.user=u;
+            if(u) { statusEl.innerText="Online: "+(u.email||u.displayName); statusEl.classList.replace('text-yellow-400','text-green-400'); document.getElementById('btn-logout').classList.remove('hidden'); fetchData(); }
+            else { statusEl.innerText="v3.3 - Offline"; document.getElementById('btn-logout').classList.add('hidden'); setMode('landing'); }
+        });
+    </script>
+</body>
+</html>
