@@ -421,13 +421,13 @@ function renderCoursesList(c) {
         const teachers = db.users.filter(u => u.role === 'teacher');
         filterHtml = `<select onchange="setAdminFilter(this.value)" class="border p-2 rounded bg-white text-sm"><option value="all">All Teachers</option>${teachers.map(t => `<option value="${t.id}" ${adminCourseFilter===t.id?'selected':''}>${t.name}</option>`).join('')}</select>`;
         subs = adminCourseFilter === 'all' ? db.subjects : db.subjects.filter(s => s.teacherId === adminCourseFilter);
-        c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg">Active Courses</h3><div class="flex gap-2">${filterHtml}${currentUser.role==='teacher' ? `<button onclick="openAddCourseModal()" class="bg-canvas-accent text-white px-4 py-2 rounded font-bold text-sm shadow hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>New Course</button>` : ''}</div></div>`;
+        c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg" class="border p-2 rounded bg-white text-sm">Active Courses</h3><div class="flex gap-2">${filterHtml}${currentUser.role==='teacher' ? `<button onclick="openAddCourseModal()" class="bg-canvas-accent text-white px-4 py-2 rounded font-bold text-sm shadow hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>New Course</button>` : ''}</div></div>`;
     } else if (currentUser.role === 'teacher') {
         subs = db.subjects.filter(s => s.teacherId === currentUser.id);
-        c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg">Active Courses</h3><button onclick="openAddCourseModal()" class="bg-canvas-accent text-white px-4 py-2 rounded font-bold text-sm shadow hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>New Course</button></div>`;
+        c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg" class="border p-2 rounded bg-white text-sm">Active Courses</h3><button onclick="openAddCourseModal()" class="bg-canvas-accent text-white px-4 py-2 rounded font-bold text-sm shadow hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>New Course</button></div>`;
     } else {
         subs = db.subjects.filter(s => s.students.includes(currentUser.id));
-        c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg">Active Courses</h3></div>`;
+        c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg" class="border p-2 rounded bg-white text-sm">Active Courses</h3></div>`;
     }
     if(subs.length === 0) { c.innerHTML += `<div class="theme-panel bg-white p-12 rounded border border-dashed text-center text-gray-400"><i class="fas fa-book-open text-4xl mb-3 block"></i><p>No courses found.</p></div>`; } else {
         c.innerHTML += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">${subs.map(s => {
@@ -440,7 +440,6 @@ window.setAdminFilter = (val) => { adminCourseFilter = val; render(); }
 window.openAddCourseModal = () => { renderModal('modal-add-course', 'Add Course', `<div class="space-y-3"><input id="c-name" class="w-full border p-2 rounded" placeholder="Course Name"><input id="c-code" class="w-full border p-2 rounded" placeholder="Course Code"><div><label class="text-xs font-bold text-gray-500">Select Teacher</label><select id="c-teacher" class="w-full border p-2 rounded bg-white text-sm">${db.users.filter(u => u.role === 'teacher').map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></div><button onclick="addCourse()" class="w-full bg-canvas-accent text-white py-2 rounded">Create</button></div>`); }
 window.addCourse = () => { const n=$('c-name').value, c=$('c-code').value; let tid=currentUser.id; if(currentUser.role==='admin') tid=$('c-teacher').value; if(n&&c){ db.subjects.push({id:'s'+Date.now(), name:n, code:c, teacherId:tid, students:[], color:'#0374B5', img:'', introTitle:'Welcome', introBody:'', gradingWeights:{ww:40,pt:40,qa:20}}); saveDB(); render(); closeModal('modal-add-course'); } }
 window.openCourse = (sid) => { currentCourseId = sid; currentView = 'course'; currentTab = 'home'; render(); }
-
 
 // --- CALENDAR ---
 function renderCalendar(c) {
@@ -1138,6 +1137,7 @@ render();
 </script>
 </body>
 </html>
+
 
 
 
