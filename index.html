@@ -190,7 +190,7 @@ const dbStore = getFirestore(app);
 const PUBLIC_DATA_PATH = `artifacts/${appId}/public/data/school_system`;
 const MASTER_DOC_ID = 'master_record';
 
-// --- DATA STORE ---
+/ --- DATA STORE ---
 const defaultData = {
     users: [
         { id: 'u1', name: 'Mrs. Anderson', role: 'teacher', username: 'teacher', password: '123', avatar: 'MA' },
@@ -237,30 +237,16 @@ async function initFirebase() {
                         applyTheme();
                         if (currentUser) render(); 
                     } else { setDoc(doc(dbStore, PUBLIC_DATA_PATH, MASTER_DOC_ID), defaultData); db = defaultData; }
-                    removeLoader();
+                    const l = $('loading-screen'); if(l) { l.style.opacity=0; setTimeout(() => l.remove(), 500); $('app').classList.remove('opacity-0'); }
                     if(!currentUser) render(); 
                 });
             }
         });
-    } catch (e) { 
-        console.error("Firebase Error:", e);
-        removeLoader();
-        render(); // Fallback to offline mode immediately on error
-    }
+    } catch (e) { console.error("Firebase Error:", e); }
 }
 async function saveDB() { if (firebaseUser) setDoc(doc(dbStore, PUBLIC_DATA_PATH, MASTER_DOC_ID), db); }
+initFirebase();
 
-function removeLoader() {
-    const l = $('loading-screen'); 
-    if(l) { 
-        l.style.opacity=0; 
-        setTimeout(() => l.remove(), 500); 
-        const app = $('app');
-        if(app) app.classList.remove('opacity-0'); 
-    }
-}
-// Safety timeout to remove loader
-setTimeout(removeLoader, 3000);
 
 // --- THEME ENGINE ---
 function applyTheme() {
@@ -284,8 +270,24 @@ function applyTheme() {
         root.style.setProperty('--backdrop-blur', 'none');
         root.style.setProperty('--sidebar-bg', '#ffffff');
     }
-}
-
+// --- HELPERS ---
+const $ = (id) => document.getElementById(id);
+window.$ = $;
+const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const showToast = (msg, type='info') => {
+    const b = document.createElement('div');
+    b.className = `px-4 py-3 rounded shadow-lg text-white font-bold transform transition-all duration-300 translate-y-4 pointer-events-auto ${type==='error'?'bg-canvas-danger':'bg-canvas-accent'}`;
+    b.innerText = msg; $('toast-container').appendChild(b); setTimeout(()=>b.remove(), 3000);
+};
+const showConfirm = (message, onYes) => {
+    const id = 'confirm-modal';
+    renderModal(id, 'Confirm', `<div class="space-y-4"><p>${message}</p><div class="flex justify-end gap-2"><button onclick="closeModal('${id}')" class="px-4 py-2 border rounded">Cancel</button><button id="confirm-yes" class="px-4 py-2 bg-red-600 text-white rounded">Confirm</button></div></div>`);
+    setTimeout(() => $('confirm-yes').onclick = () => { onYes(); closeModal(id); }, 50);
+};
+const renderAvatar = (user, size='w-8 h-8', text='text-xs') => {
+    if (user?.avatar?.startsWith('data:') || user?.avatar?.startsWith('http')) return `<img src="${user.avatar}" class="${size} rounded-full object-cover border bg-white">`;
+    return `<div class="${size} rounded-full bg-blue-100 text-blue-600 flex items-center justify-center ${text} font-bold border border-blue-200">${user?.name?.[0]||'?'}</div>`;
+};
 window.parseQuizText = (text) => {
     const questions = []; const lines = text.split('\n').map(l => l.trim()).filter(l => l); let currQ = null, currPassage = '', tempBuffer = '';
     for (let i = 0; i < lines.length; i++) {
@@ -351,8 +353,6 @@ function render() {
         if(currentView === 'settings') renderSettings(c);
         if(currentView === 'theme_builder') renderThemeBuilder(c);
     }
-}
-
 // Global Nav
 window.goDashboard = () => { currentView='dashboard'; render(); }
 window.goCoursesList = () => { currentView='courses_list'; render(); }
@@ -432,6 +432,7 @@ function renderDashboard(c) {
     }
     c.innerHTML = `<div class="max-w-4xl mx-auto"><div class="mb-6 flex items-center gap-3 p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg"><div class="bg-white/20 p-3 rounded-lg"><i class="fas fa-newspaper text-2xl"></i></div><div><h2 class="text-2xl font-bold">School News</h2><p class="text-blue-100 text-sm">Latest updates from the administration.</p></div></div><div class="space-y-6">${(db.globalPosts && db.globalPosts.length > 0) ? db.globalPosts.map(p => renderPostCard(p, false)).join('') : '<div class="theme-panel bg-white p-12 rounded-xl border border-dashed text-center text-gray-400"><i class="fas fa-inbox text-5xl mb-4 text-gray-200 block"></i>No announcements yet.</div>'}</div></div>`;
 }
+
 // --- COURSES ---
 function renderCoursesList(c) {
     $('page-title').innerText = 'Courses';
@@ -452,7 +453,7 @@ function renderCoursesList(c) {
     if(subs.length === 0) { c.innerHTML += `<div class="theme-panel bg-white p-12 rounded border border-dashed text-center text-gray-400"><i class="fas fa-book-open text-4xl mb-3 block"></i><p>No courses found.</p></div>`; } else {
         c.innerHTML += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">${subs.map(s => {
             const t = db.users.find(u => u.id === s.teacherId);
-            return `<div onclick="openCourse('${s.id}')" class="theme-panel course-card bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden cursor-pointer h-64 flex flex-col group"><div class="course-header" style="background-image: url('${s.img}'); background-color: ${s.color}"><div class="absolute inset-0 bg-black/30 p-4 transition group-hover:bg-black/40"><span class="bg-white/90 text-xs font-bold px-2 py-1 rounded w-max text-gray-800 shadow-sm">${s.code}</span></div></div><div class="p-4 flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-canvas-accent text-lg leading-tight mb-1 group-hover:underline">${s.name}</h3><p class="text-xs text-gray-500">${t ? t.name : 'Unknown Instructor'}</p></div><div class="flex items-center justify-between text-gray-400 text-sm"><span class="text-xs bg-gray-100 px-2 py-1 rounded">${s.students.length} Students</span></div></div></div>`;
+            return `<div onclick="openCourse('${s.id}')" class="theme-panel course-card bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer h-64 flex flex-col group hover-lift"><div class="course-header" style="background-image: url('${s.img}'); background-color: ${s.color}"><div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent p-4 flex flex-col justify-end transition group-hover:from-black/80"><span class="bg-white/20 backdrop-blur-sm text-white border border-white/30 text-xs font-bold px-2 py-1 rounded w-max shadow-sm mb-1">${s.code}</span><h3 class="font-bold text-white text-lg leading-tight drop-shadow-sm">${s.name}</h3></div></div><div class="p-4 flex-1 flex flex-col justify-between"><div><p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Instructor</p><div class="flex items-center gap-2">${renderAvatar(t, 'w-6 h-6', 'text-[10px]')} <span class="text-sm font-medium text-gray-700">${t ? t.name : 'Unknown'}</span></div></div><div class="flex items-center justify-between text-gray-400 text-xs border-t pt-3"><span class="bg-gray-100 px-2 py-1 rounded text-gray-600"><i class="fas fa-users mr-1"></i> ${s.students.length} Students</span><i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform text-gray-300 group-hover:text-canvas-accent"></i></div></div></div>`;
         }).join('')}</div>`;
     }
 }
@@ -460,6 +461,7 @@ window.setAdminFilter = (val) => { adminCourseFilter = val; render(); }
 window.openAddCourseModal = () => { renderModal('modal-add-course', 'Add Course', `<div class="space-y-3"><input id="c-name" class="w-full border p-2 rounded" placeholder="Course Name"><input id="c-code" class="w-full border p-2 rounded" placeholder="Course Code"><div><label class="text-xs font-bold text-gray-500">Select Teacher</label><select id="c-teacher" class="w-full border p-2 rounded bg-white text-sm">${db.users.filter(u => u.role === 'teacher').map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></div><button onclick="addCourse()" class="w-full bg-canvas-accent text-white py-2 rounded">Create</button></div>`); }
 window.addCourse = () => { const n=$('c-name').value, c=$('c-code').value; let tid=currentUser.id; if(currentUser.role==='admin') tid=$('c-teacher').value; if(n&&c){ db.subjects.push({id:'s'+Date.now(), name:n, code:c, teacherId:tid, students:[], color:'#0374B5', img:'', introTitle:'Welcome', introBody:'', gradingWeights:{ww:40,pt:40,qa:20}}); saveDB(); render(); closeModal('modal-add-course'); } }
 window.openCourse = (sid) => { currentCourseId = sid; currentView = 'course'; currentTab = 'home'; render(); }
+
 
 // --- CALENDAR ---
 function renderCalendar(c) {
@@ -612,7 +614,7 @@ function renderThemeBuilder(c) {
         </div>
     `;
 
-    // File Handlers
+      // File Handlers
     setTimeout(() => {
         $('theme-logo-file').addEventListener('change', e => {
             const f = e.target.files[0]; if(f) { const r=new FileReader(); r.onload=ev=>{$('theme-logo-url').value=ev.target.result; renderThemeBuilder(c);}; r.readAsDataURL(f); }
@@ -718,7 +720,7 @@ window.registerStudent = () => { const n=$('reg-s-name').value, u=$('reg-s-user'
 function renderCourse(c) {
     const s = db.subjects.find(x => x.id === currentCourseId);
     if(!s) return goDashboard();
-    $('page-title').innerText = `<span class="text-gray-400 cursor-pointer" onclick="goCoursesList()">${s.code}</span> <span class="mx-2">></span> ${s.name}`;
+    $('page-title').innerText = s.name;
     c.innerHTML = `<div class="flex flex-col md:flex-row gap-6 h-full"><nav class="theme-panel w-full md:w-48 flex-shrink-0 flex md:flex-col gap-1 text-sm font-medium text-canvas-primary border-r border-gray-200 pb-4 md:pr-4"><a onclick="switchTab('home')" class="${currentTab==='home'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Home</a><a onclick="switchTab('modules')" class="${currentTab==='modules'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Modules</a><a onclick="switchTab('activities')" class="${currentTab==='activities'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Activities</a><a onclick="switchTab('quizzes')" class="${currentTab==='quizzes'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Quizzes/Exams</a><a onclick="switchTab('grades')" class="${currentTab==='grades'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Grades</a><a onclick="switchTab('people')" class="${currentTab==='people'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">People</a></nav><div id="course-content" class="flex-1"></div></div>`;
     renderCourseTab();
 }
@@ -840,32 +842,67 @@ window.updateBlock = (i, val) => { builderBlocks[i].content = val; }
 window.execCmd = (i, cmd, val=null) => { document.execCommand(cmd, false, val); builderBlocks[i].content = document.getElementById(`editor-${i}`).innerHTML; }
 window.uploadBlockFile = (i, input) => { if(input.files[0]) { const r = new FileReader(); r.onload = e => { builderBlocks[i].content = e.target.result; builderBlocks[i].name = input.files[0].name; renderBlocks(); }; r.readAsDataURL(input.files[0]); } }
 window.cancelModule = () => { currentView = 'course'; render(); }
-window.saveModule = () => { const t = $('mod-title-input').value; if(!t) return showToast('Title required','error'); if(!db.modules[currentCourseId]) db.modules[currentCourseId]=[]; const mod = { id: editingModuleId || 'm'+Date.now(), title: t, blocks: builderBlocks, date: new Date().toISOString() }; if(editingModuleId) { const idx = db.modules[currentCourseId].findIndex(m=>m.id===editingModuleId); db.modules[currentCourseId][idx] = mod; } else { db.modules[currentCourseId].push(mod); } saveDB(); currentView = 'course'; render(); showToast('Saved'); }
-function renderModuleBuilder(c) {
-    const title = editingModuleId ? db.modules[currentCourseId].find(m=>m.id===editingModuleId).title : "";
-    c.innerHTML = `<div class="max-w-4xl mx-auto pb-24"><div class="theme-panel flex justify-between items-center mb-6 bg-white p-4 rounded shadow-sm border"><input id="mod-title-input" value="${title}" class="text-xl font-bold bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none w-full mr-4" placeholder="Module Title"><div class="flex gap-2"><button onclick="cancelModule()" class="px-4 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded">Cancel</button><button onclick="saveModule()" class="px-4 py-2 bg-green-600 text-white font-bold rounded shadow">Save</button></div></div><div id="blocks-list" class="space-y-4"></div><div class="fixed bottom-0 left-0 w-full bg-white border-t p-4 flex justify-center gap-4 shadow z-50"><button onclick="addBlock('text')" class="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded hover:bg-blue-50 font-bold border"><i class="fas fa-font text-blue-500"></i> Text</button><button onclick="addBlock('image')" class="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded hover:bg-blue-50 font-bold border"><i class="fas fa-image text-green-500"></i> Image</button><button onclick="addBlock('video')" class="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded hover:bg-blue-50 font-bold border"><i class="fas fa-video text-red-500"></i> Video</button><button onclick="addBlock('file')" class="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded hover:bg-blue-50 font-bold border"><i class="fas fa-paperclip text-gray-500"></i> File</button></div></div>`;
-    renderBlocks();
-}
-window.renderBlocks = () => {
-    const el = $('blocks-list'); if(!el) return;
-    el.innerHTML = builderBlocks.map((b, i) => `<div class="module-block group"><div class="block-actions"><button onclick="moveBlock(${i}, -1)" class="p-1 hover:text-blue-600"><i class="fas fa-arrow-up"></i></button><button onclick="moveBlock(${i}, 1)" class="p-1 hover:text-blue-600"><i class="fas fa-arrow-down"></i></button><button onclick="removeBlock(${i})" class="p-1 hover:text-red-500"><i class="fas fa-times"></i></button></div>${renderBlockContent(b, i)}</div>`).join('');
-}
-function renderBlockContent(b, i) {
-    if(b.type === 'text') return `<div class="rich-toolbar"><button class="rich-btn" onclick="execCmd(${i}, 'bold')">B</button><button class="rich-btn" onclick="execCmd(${i}, 'italic')">I</button><button class="rich-btn" onclick="execCmd(${i}, 'underline')">U</button><button class="rich-btn" onclick="execCmd(${i}, 'removeFormat')"><i class="fas fa-eraser"></i></button><select onchange="execCmd(${i}, 'fontSize', this.value)" class="rich-btn h-6 py-0"><option value="3">Normal</option><option value="5">Large</option><option value="7">Huge</option></select><div class="color-picker-wrapper rich-btn w-6" title="Text Color"><i class="fas fa-font"></i><input type="color" onchange="execCmd(${i}, 'foreColor', this.value)"></div><button class="rich-btn bg-yellow-100 hover:bg-yellow-200 text-yellow-800" onclick="execCmd(${i}, 'hiliteColor', 'yellow')" title="Highlight"><i class="fas fa-highlighter"></i></button></div><div id="editor-${i}" class="rich-content w-full bg-white border" contenteditable="true" oninput="updateBlock(${i}, this.innerHTML)">${b.content}</div>`;
-    else if (b.type === 'video') return `<label class="block text-xs font-bold text-gray-500 mb-2">YouTube URL</label><input class="w-full border p-2 rounded" value="${b.content}" onchange="updateBlock(${i}, this.value)" placeholder="https://youtube.com/watch?v=...">`;
-    else return `<div class="flex items-center gap-4"><input type="file" onchange="uploadBlockFile(${i}, this)">${b.content ? `<span class="text-green-600 text-xs font-bold">Uploaded</span>` : ''}</div>`;
-}
-window.viewModule = (mid) => {
-    const m = db.modules[currentCourseId].find(x=>x.id===mid);
-    const content = m.blocks.map(b => {
-        if(b.type === 'text') return `<div class="mb-4 text-gray-800">${b.content}</div>`;
-        if(b.type === 'image') return `<img src="${b.content}" class="w-full h-auto rounded mb-4 shadow">`;
-        if(b.type === 'video') return `<div class="embed-container mb-4"><iframe src="${b.content.replace('watch?v=', 'embed/')}" frameborder="0" allowfullscreen></iframe></div>`;
-        if(b.type === 'file') return `<a href="${b.content}" download="${b.name||'file'}" class="block bg-blue-50 border border-blue-200 p-3 rounded mb-4 text-blue-700 hover:bg-blue-100 font-bold"><i class="fas fa-paperclip mr-2"></i> Download ${b.name||'File'}</a>`;
-    }).join('');
-    renderModal('mod-view', m.title, `<div class="p-2">${content}</div>`);
-}
+// --- UPDATED MODULE BUILDER (Replaces your old saveModule) ---
+window.saveModule = () => {
+    const title = $('mod-title').value;
+    if (!title) return showToast('Please enter a module title', 'error');
 
+    const moduleData = {
+        id: editingModuleId || 'mod_' + Date.now(),
+        title: title,
+        courseId: currentCourseId,
+        blocks: [...builderBlocks] // Captures all text/image blocks
+    };
+
+    // Ensure the array exists for this specific course
+    if (!db.modules[currentCourseId]) db.modules[currentCourseId] = [];
+
+    // Logic to Update or Add
+    if (editingModuleId) {
+        const idx = db.modules[currentCourseId].findIndex(m => m.id === editingModuleId);
+        if(idx !== -1) db.modules[currentCourseId][idx] = moduleData;
+    } else {
+        db.modules[currentCourseId].push(moduleData);
+    }
+
+    // THIS IS THE FIX: Wait for Firebase to finish saving before closing
+    saveDB().then(() => {
+        showToast('Module successfully saved to Cloud');
+        goCourse(currentCourseId); // This refreshes the view so you see it immediately
+    });
+};
+
+// --- UPDATED ACTIVITY BUILDER (Replaces your old publishActivity) ---
+window.publishActivity = () => {
+    const title = $('act-title').value;
+    const type = $('act-type').value;
+    if (!title) return showToast('Please enter a title', 'error');
+
+    const activityData = {
+        id: editingActivityId || 'act_' + Date.now(),
+        title: title,
+        type: type,
+        content: builderBlocks.map(b => b.content).join('\n'),
+        blocks: [...builderBlocks],
+        date: new Date().toISOString(),
+        courseId: currentCourseId
+    };
+
+    if (!db.activities[currentCourseId]) db.activities[currentCourseId] = [];
+
+    if (editingActivityId) {
+        const idx = db.activities[currentCourseId].findIndex(a => a.id === editingActivityId);
+        if(idx !== -1) db.activities[currentCourseId][idx] = activityData;
+    } else {
+        db.activities[currentCourseId].push(activityData);
+    }
+
+    // THIS IS THE FIX: Forces Firebase to sync so students see it
+    saveDB().then(() => {
+        showToast('Activity Published & Visible to Students');
+        goCourse(currentCourseId);
+    });
+};
 // --- ACTIVITY BUILDER (NEW) ---
 window.createActivity = () => { builderBlocks = []; editingActivityId = null; currentView = 'activity_builder'; render(); }
 window.editActivity = (aid) => { const a = db.activities[currentCourseId].find(x=>x.id===aid); builderBlocks = JSON.parse(JSON.stringify(a.blocks || [])); editingActivityId = aid; currentView = 'activity_builder'; render(); }
@@ -1122,5 +1159,3 @@ render();
 </script>
 </body>
 </html>
-
-
