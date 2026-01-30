@@ -427,7 +427,7 @@ function renderCoursesList(c) {
         c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg">Active Courses</h3><button onclick="openAddCourseModal()" class="bg-canvas-accent text-white px-4 py-2 rounded font-bold text-sm shadow hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>New Course</button></div>`;
     } else {
         subs = db.subjects.filter(s => s.students.includes(currentUser.id));
-        c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg class="border p-2 rounded bg-white text-sm">Active Courses</h3></div>`;
+        c.innerHTML = `<div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-800 text-lg">Active Courses</h3></div>`;
     }
     if(subs.length === 0) { c.innerHTML += `<div class="theme-panel bg-white p-12 rounded border border-dashed text-center text-gray-400"><i class="fas fa-book-open text-4xl mb-3 block"></i><p>No courses found.</p></div>`; } else {
         c.innerHTML += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">${subs.map(s => {
@@ -1138,6 +1138,7 @@ render();
 </script>
 </body>
 </html>
+
 
 
 
