@@ -652,7 +652,7 @@ window.registerStudent = () => { const n=$('reg-s-name').value, u=$('reg-s-user'
 function renderCourse(c) {
     const s = db.subjects.find(x => x.id === currentCourseId);
     if(!s) return goDashboard();
-    $('page-title').innerText = `<span class="text-gray-400 cursor-pointer" onclick="goCoursesList()">${s.code}</span> <span class="mx-2">></span> ${s.name}`;
+    $('page-title').innerText = s.name;
     c.innerHTML = `<div class="flex flex-col md:flex-row gap-6 h-full"><nav class="theme-panel w-full md:w-48 flex-shrink-0 flex md:flex-col gap-1 text-sm font-medium text-canvas-primary border-r border-gray-200 pb-4 md:pr-4"><a onclick="switchTab('home')" class="${currentTab==='home'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Home</a><a onclick="switchTab('modules')" class="${currentTab==='modules'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Modules</a><a onclick="switchTab('activities')" class="${currentTab==='activities'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Activities</a><a onclick="switchTab('quizzes')" class="${currentTab==='quizzes'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Quizzes/Exams</a><a onclick="switchTab('grades')" class="${currentTab==='grades'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">Grades</a><a onclick="switchTab('people')" class="${currentTab==='people'?'border-l-4 border-canvas-base font-bold pl-2':''} p-2 cursor-pointer hover:bg-gray-100 block">People</a></nav><div id="course-content" class="flex-1"></div></div>`;
     renderCourseTab();
 }
@@ -1056,5 +1056,6 @@ render();
 </script>
 </body>
 </html>
+
 
 
