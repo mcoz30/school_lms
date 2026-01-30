@@ -284,16 +284,15 @@ function questionsToText(questions) {
     return textOutput.trim();
 }
 window.onManualInput = (val) => { const qs = parseQuizText(val); const label = $('manual-detected-label'); if(label) label.innerHTML = qs.length > 0 ? `<span class="text-green-600 font-bold"><i class="fas fa-check-circle"></i> ${qs.length} Questions Detected</span>` : `<span class="text-gray-400">Typing...</span>`; }
-
 // --- ROUTER ---
 function render() {
     const app = $('app'); if (!app) return; app.innerHTML = '';
     if(currentView === 'login') { renderLogin(app); } else {
         const logo = db.theme.logoUrl ? `<img src="${db.theme.logoUrl}" class="h-8 w-8 object-contain mr-2">` : '<i class="fas fa-shapes text-3xl text-canvas-accent"></i>';
         app.innerHTML = `
-            <div id="main-layout" class="flex w-full h-full bg-[#F5F5F5]">
+            <div id="main-layout" class="flex w-full h-full">
                 <nav id="global-nav">
-                    <div class="mb-6 hidden md:block mt-4">${logo}</div>
+                    <div class="mb-6 hidden md:block mt-4 transform hover:scale-110 transition-transform duration-300">${logo}</div>
                     <div class="nav-item ${currentView==='dashboard'?'active':''}" onclick="goDashboard()"><i class="fas fa-tachometer-alt nav-icon"></i><span class="nav-label">Dash</span></div>
                     ${currentUser.role === 'admin' ? `
                     <div class="nav-item ${currentView==='teachers_list'?'active':''}" onclick="goTeachersList()"><i class="fas fa-chalkboard-teacher nav-icon"></i><span class="nav-label">Teachers</span></div>
@@ -304,15 +303,15 @@ function render() {
                     <div class="nav-item ${currentView==='settings'?'active':''}" onclick="goSettings()"><i class="fas fa-cog nav-icon"></i><span class="nav-label">Settings</span></div>
                     <div class="mt-auto mb-4 nav-item" onclick="logout()"><i class="fas fa-sign-out-alt nav-icon text-gray-400"></i><span class="nav-label text-gray-400">Logout</span></div>
                 </nav>
-                <main id="content-area" class="flex-1 overflow-y-auto relative">
-                    <header class="theme-panel border-b h-16 flex items-center justify-between px-6 sticky top-0 z-40">
+                <main id="content-area" class="flex-1 overflow-y-auto relative p-6">
+                    <header class="theme-panel h-16 flex items-center justify-between px-6 sticky top-0 z-40 rounded-xl mb-6 animate-slide-up">
                         <div class="flex items-center gap-2 text-canvas-base">
-                            ${db.theme.logoUrl ? `<img src="${db.theme.logoUrl}" class="h-6 w-6 object-contain">` : ''}
+                            ${db.theme.logoUrl ? `<img src="${db.theme.logoUrl}" class="h-8 w-8 object-contain">` : ''}
                             <h2 class="font-bold text-lg uppercase tracking-wide" id="page-title">${db.theme.appName}</h2>
                         </div>
-                        <div class="flex items-center gap-3"><span class="text-sm font-bold text-gray-600">${currentUser.name}</span>${renderAvatar(currentUser, 'w-8 h-8', 'text-xs')}</div>
+                        <div class="flex items-center gap-3"><span class="text-sm font-bold text-gray-600">${currentUser.name}</span>${renderAvatar(currentUser, 'w-9 h-9', 'text-sm')}</div>
                     </header>
-                    <div id="page-content" class="p-6 md:p-8 max-w-7xl mx-auto"></div>
+                    <div id="page-content" class="max-w-7xl mx-auto animate-slide-up" style="animation-delay: 0.1s;"></div>
                 </main>
             </div>
         `;
@@ -1116,6 +1115,7 @@ render();
 </script>
 </body>
 </html>
+
 
 
 
