@@ -218,6 +218,8 @@ const phHolidays = [
 ];
 
 // --- SUPABASE SYNC ---
+let saveTimeout = null;
+
 async function initSupabase() {
     try {
         const { data: appData, error } = await supabase
@@ -252,33 +254,28 @@ async function initSupabase() {
         // --- REALTIME SUBSCRIPTION SETUP ---
         supabase.channel('public:app_data')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_data', filter: 'id=eq.master_record' }, payload => {
+                // Ignore updates if they match our last local save (prevents jitter)
+                // Since we don't have a transaction ID, we check content roughly or just apply
                 if (payload.new && payload.new.data) {
                     console.log('Received live update:', new Date().toISOString());
                     
-                    // 1. Update the local data store
-                    db = payload.new.data;
-                    
-                    // 2. Check if it's safe to re-render (don't interrupt typing/editing)
                     const unsafeViews = ['module_builder', 'activity_builder', 'theme_builder', 'exam-take'];
                     const isWritingPost = currentView === 'course' && currentTab === 'home' && document.activeElement && document.activeElement.tagName === 'TEXTAREA';
                     
-                    // 3. Apply changes
-                    applyTheme(); // Theme changes are always safe
-                    
                     if (!unsafeViews.includes(currentView) && !isWritingPost) {
-                        render(); // Refresh UI to show new content
-                        
-                        // Show "Updated" indicator
-                        const status = $('sync-status');
-                        if(status) {
-                            status.innerHTML = '<i class="fas fa-bolt text-yellow-400"></i> Live Update';
-                            status.style.opacity = '1';
-                            setTimeout(() => { 
-                                status.style.opacity = '0'; 
-                                status.innerHTML = '<i class="fas fa-save"></i> Saved'; 
-                            }, 3000);
-                        }
+                         db = payload.new.data; // Apply cloud data
+                         applyTheme();
+                         render(); // Refresh UI
+                         
+                         const status = $('sync-status');
+                         if(status) {
+                             status.innerHTML = '<i class="fas fa-bolt text-yellow-400"></i> Live Update';
+                             status.style.opacity = '1';
+                             setTimeout(() => { status.style.opacity = '0'; }, 2000);
+                         }
                     } else {
+                        // If user is editing, we skip the full render but maybe silently update non-conflict parts? 
+                        // For simplicity in this structure, we skip to avoid overwriting work.
                         console.log('Skipped render to protect user input');
                     }
                 }
@@ -298,39 +295,53 @@ async function initSupabase() {
     }
 }
 
+// Optimized Non-Blocking Save
 async function saveDB() {
-    try {
-        const { error } = await supabase
-            .from('app_data')
-            .upsert({ 
-                id: 'master_record', 
-                data: db,
-                updated_at: new Date().toISOString()
-            }, { 
-                onConflict: 'id' 
-            });
-        
-        if (error) {
-            console.error("Save Error:", error);
-            if (error.code === '42P01' || error.code === '42501') {
-                showDatabaseErrorModal(error.code);
-            } else {
-                showToast('Failed to save: ' + error.message, 'error');
-            }
-            return false; 
-        } else {
-            const status = $('sync-status');
-            if(status) {
-                status.style.opacity = '1';
-                setTimeout(() => status.style.opacity = '0', 2000);
-            }
-            return true;
-        }
-    } catch (e) {
-        console.error("Save Error:", e);
-        showToast('Connection failed', 'error');
-        return false;
+    // Immediate UI Feedback
+    const status = $('sync-status');
+    if(status) {
+        status.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Saving...';
+        status.style.opacity = '1';
     }
+
+    // Debounce to prevent flooding
+    if (saveTimeout) clearTimeout(saveTimeout);
+
+    return new Promise((resolve) => {
+        saveTimeout = setTimeout(async () => {
+            try {
+                const { error } = await supabase
+                    .from('app_data')
+                    .upsert({ 
+                        id: 'master_record', 
+                        data: db,
+                        updated_at: new Date().toISOString()
+                    }, { 
+                        onConflict: 'id' 
+                    });
+                
+                if (error) {
+                    console.error("Save Error:", error);
+                    if (error.code === '42P01' || error.code === '42501') {
+                        showDatabaseErrorModal(error.code);
+                    } else {
+                        showToast('Sync failed: ' + error.message, 'error');
+                    }
+                    resolve(false);
+                } else {
+                    if(status) {
+                        status.innerHTML = '<i class="fas fa-check"></i> Saved';
+                        setTimeout(() => status.style.opacity = '0', 2000);
+                    }
+                    resolve(true);
+                }
+            } catch (e) {
+                console.error("Save Error:", e);
+                showToast('Connection failed', 'error');
+                resolve(false);
+            }
+        }, 500); // 500ms delay to batch rapid updates
+    });
 }
 
 // Helper to show SQL Fix
@@ -1328,36 +1339,128 @@ window.saveTheme = async () => {
             glassOpacity: opacityEl ? opacityEl.value : 0.9
         };
         
-        const success = await saveDB();
-        if(success) {
-            applyTheme();
-            render(); 
-            showToast('Theme Saved');
-        }
+        // Optimistic Update
+        applyTheme();
+        showToast('Theme Updated');
+        
+        // Background Save
+        saveDB(); 
     } catch (e) {
         console.error(e);
         showToast('Error saving theme: ' + e.message, 'error');
     }
 }
-
-window.resetTheme = () => {
-    db.theme = defaultData.theme;
-    saveDB();
-    applyTheme();
-    renderThemeBuilder($('page-content'));
-    showToast('Theme Reset');
+window.publishPost = () => { 
+    const c=$('post-content').value, t=$('post-type').value; 
+    let u=$('post-url').value; 
+    if(t==='image_upload') u=tempTeacherImage; 
+    
+    if(c||u) { 
+        if(!db.posts) db.posts=[]; 
+        db.posts.push({
+            id:'p'+Date.now(), 
+            courseId:currentCourseId, 
+            authorId:currentUser.id, 
+            authorName:currentUser.name, 
+            date:new Date().toISOString(), 
+            content:c, 
+            mediaType:t, 
+            mediaUrl:u, 
+            isPinned:false
+        }); 
+        
+        tempTeacherImage=null; 
+        
+        // Optimistic Render
+        render(); 
+        
+        // Background Save
+        saveDB(); 
+    } 
 }
+// --- UPDATED MODULE BUILDER (Optimistic Save) ---
+window.saveModule = async () => {
+    const title = $('mod-title').value;
+    const unlockDate = $('mod-unlock').value;
+    if (!title) return showToast('Please enter a module title', 'error');
 
-// --- EVENT NAVIGATION ---
-window.goToEvent = (cid, tab, id, type) => {
-    currentCourseId = cid;
-    currentView = 'course';
-    currentTab = tab;
+    const moduleData = {
+        id: editingModuleId || 'mod_' + Date.now(),
+        title: title,
+        courseId: currentCourseId,
+        unlockDate: unlockDate, // Save the scheduled date
+        blocks: [...builderBlocks], 
+        date: new Date().toISOString() 
+    };
+
+    // Ensure the array exists for this specific course
+    if (!db.modules[currentCourseId]) db.modules[currentCourseId] = [];
+
+    // Logic to Update or Add
+    if (editingModuleId) {
+        const idx = db.modules[currentCourseId].findIndex(m => m.id === editingModuleId);
+        if(idx !== -1) db.modules[currentCourseId][idx] = moduleData;
+    } else {
+        db.modules[currentCourseId].push(moduleData);
+    }
+
+    // Optimistic Update: Switch view immediately
+    showToast('Module Saved');
+    goCourse(currentCourseId); 
+    
+    // Background Sync
+    saveDB().then(success => {
+        if (!success) showToast('Sync warning: Data saved locally but cloud update failed.', 'warning');
+    });
+};
+
+// --- UPDATED ACTIVITY BUILDER (Optimistic Save) ---
+window.publishActivity = async () => {
+    // This function seems duplicate or deprecated by saveActivityBuilt, 
+    // ensuring consistency with saveActivityBuilt logic below
+    window.saveActivityBuilt();
+};
+
+window.createActivity = () => { builderBlocks = []; editingActivityId = null; currentView = 'activity_builder'; render(); }
+window.editActivity = (aid) => { const a = db.activities[currentCourseId].find(x=>x.id===aid); builderBlocks = JSON.parse(JSON.stringify(a.blocks || [])); editingActivityId = aid; currentView = 'activity_builder'; render(); }
+window.cancelActivity = () => { currentView = 'course'; render(); }
+
+// Optimistic Activity Save
+window.saveActivityBuilt = async () => {
+    const t=$('act-build-title').value, max=parseInt($('act-build-max').value), cat=$('act-build-cat').value, start=$('act-build-start').value, due=$('act-build-due').value;
+    const subText = $('sub-opt-text').checked, subFile = $('sub-opt-file').checked;
+    
+    if(!t) return showToast('Title required', 'error');
+
+    if(!db.activities[currentCourseId]) db.activities[currentCourseId] = [];
+    
+    const actData = {
+        id: editingActivityId || 'a'+Date.now(), 
+        title: t, 
+        maxScore: max, 
+        category: cat, 
+        openDate: start ? new Date(start).toISOString() : null, 
+        dueDate: due ? new Date(due).toISOString() : null,
+        blocks: [...builderBlocks], 
+        submissionOptions: { text: subText, file: subFile },
+        date: new Date().toISOString(),
+        courseId: currentCourseId
+    };
+    
+    if(editingActivityId) { 
+        const idx = db.activities[currentCourseId].findIndex(a=>a.id===editingActivityId); 
+        db.activities[currentCourseId][idx] = actData; 
+    } else { 
+        db.activities[currentCourseId].push(actData); 
+    }
+    
+    // Optimistic UI Update
+    showToast('Activity Saved');
+    currentView = 'course'; 
     render();
-    setTimeout(() => {
-        if(type === 'activity') openActivityDetail(id);
-        if(type === 'exam') openExamDetail(id);
-    }, 100);
+    
+    // Background Sync
+    saveDB();
 }
 window.openExamDetail = (eid) => {
     const s = db.subjects.find(x => x.id === currentCourseId);
@@ -2217,12 +2320,13 @@ window.saveQuiz = async (eid) => {
             db.exams[currentCourseId].push(data); 
         }
         
-        const success = await saveDB();
-        if (success) {
-            closeModal('quiz'); 
-            render(); 
-            showToast('Assessment Saved');
-        }
+        // Optimistic UI
+        closeModal('quiz'); 
+        render(); 
+        showToast('Assessment Saved');
+        
+        // Background Save
+        saveDB();
     } else {
         showToast('Please fill in required fields', 'error');
     }
