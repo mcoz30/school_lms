@@ -1403,6 +1403,31 @@ function renderPostCard(p, isAdmin) {
 window.openModuleBuilder = () => { builderBlocks = []; editingModuleId = null; currentView = 'module_builder'; render(); }
 window.editModule = (mid) => { const m = db.modules[currentCourseId].find(x=>x.id===mid); builderBlocks = JSON.parse(JSON.stringify(m.blocks)); editingModuleId = mid; $('mod-title-input') ? $('mod-title-input').value=m.title : null; currentView = 'module_builder'; render(); }
 window.deleteModule = (mid) => { showConfirm("Delete Module?", () => { db.modules[currentCourseId] = db.modules[currentCourseId].filter(m=>m.id!==mid); saveDB(); render(); }); }
+
+// New function to View Module Content
+window.viewModule = (mid) => {
+    const m = db.modules[currentCourseId].find(x => x.id === mid);
+    if (!m) return;
+    
+    const contentHtml = m.blocks.map(b => {
+        if (b.type === 'text') return `<div class="mb-4 text-gray-800 whitespace-pre-wrap">${b.content}</div>`;
+        if (b.type === 'image') return `<img src="${b.content}" class="w-full h-auto rounded mb-4 shadow-sm">`;
+        if (b.type === 'video') {
+             let url = b.content;
+             if(url.includes('watch?v=')) url = url.replace('watch?v=', 'embed/');
+             return `<div class="embed-container mb-4"><iframe src="${url}" frameborder="0" allowfullscreen></iframe></div>`;
+        }
+        if (b.type === 'file') return `<a href="${b.content}" download="${b.name || 'download'}" class="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded text-blue-700 font-bold mb-4 hover:bg-blue-100 transition"><i class="fas fa-file-download text-xl"></i> ${b.name || 'Download File'}</a>`;
+        return '';
+    }).join('');
+
+    renderModal('mod-view', m.title, `
+        <div class="max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
+            ${contentHtml || '<div class="text-center text-gray-400 py-8 italic">This module has no content yet.</div>'}
+        </div>
+    `);
+}
+
 window.addBlock = (type) => { builderBlocks.push({ type, content: '' }); renderBlocks(); }
 window.removeBlock = (i) => { builderBlocks.splice(i, 1); renderBlocks(); }
 window.moveBlock = (i, dir) => { if(i+dir>=0 && i+dir<builderBlocks.length) { [builderBlocks[i], builderBlocks[i+dir]] = [builderBlocks[i+dir], builderBlocks[i]]; renderBlocks(); } }
@@ -1419,7 +1444,8 @@ window.saveModule = async () => {
         id: editingModuleId || 'mod_' + Date.now(),
         title: title,
         courseId: currentCourseId,
-        blocks: [...builderBlocks] // Captures all text/image blocks
+        blocks: [...builderBlocks], // Captures all text/image blocks
+        date: new Date().toISOString() // Added Date Setup
     };
 
     // Ensure the array exists for this specific course
