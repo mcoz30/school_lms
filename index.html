@@ -1755,6 +1755,79 @@ function renderPostCard(p, isAdmin) {
     return `<div class="theme-panel bg-white p-6 rounded border border-gray-200 shadow-sm relative group ${p.isPinned ? 'bg-yellow-50 border-yellow-200' : ''}">${p.isPinned ? '<div class="absolute top-2 left-2 text-xs font-bold text-yellow-600"><i class="fas fa-thumbtack mr-1"></i> Pinned</div>' : ''}${isAdmin ? `<div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition"><button onclick="togglePinPost('${p.id}')" class="${p.isPinned ? 'text-canvas-accent' : 'text-gray-300 hover:text-canvas-accent'}"><i class="fas fa-thumbtack"></i></button><button onclick="deletePost('${p.id}')" class="text-gray-300 hover:text-red-500"><i class="fas fa-trash"></i></button></div>` : ''}<div class="flex gap-3 mb-3 mt-4">${renderAvatar({name:p.authorName}, 'w-10 h-10', 'text-sm')}<div><p class="font-bold text-sm">${p.authorName}</p><p class="text-xs text-gray-500">${new Date(p.date).toLocaleString()}</p></div></div><div class="text-gray-700 whitespace-pre-line">${p.content}</div>${mediaHtml}</div>`;
 }
 
+// --- BLOCK RENDERER (Shared by Activity & Module Builders) ---
+window.renderBlocks = () => {
+    const container = $('blocks-list');
+    if (!container) return;
+    
+    if (builderBlocks.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 py-12 italic border-2 border-dashed rounded-lg">Click the buttons below to add content blocks</div>';
+        return;
+    }
+    
+    container.innerHTML = builderBlocks.map((block, i) => {
+        let content = '';
+        
+        if (block.type === 'text') {
+            content = `
+                <div class="rich-toolbar">
+                    <button onclick="execCmd(${i}, 'bold')" class="rich-btn" title="Bold"><i class="fas fa-bold"></i></button>
+                    <button onclick="execCmd(${i}, 'italic')" class="rich-btn" title="Italic"><i class="fas fa-italic"></i></button>
+                    <button onclick="execCmd(${i}, 'underline')" class="rich-btn" title="Underline"><i class="fas fa-underline"></i></button>
+                    <div class="w-px h-4 bg-gray-300 mx-1"></div>
+                    <button onclick="execCmd(${i}, 'insertUnorderedList')" class="rich-btn" title="Bullet List"><i class="fas fa-list-ul"></i></button>
+                    <button onclick="execCmd(${i}, 'insertOrderedList')" class="rich-btn" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                    <button onclick="execCmd(${i}, 'justifyLeft')" class="rich-btn" title="Align Left"><i class="fas fa-align-left"></i></button>
+                    <button onclick="execCmd(${i}, 'justifyCenter')" class="rich-btn" title="Center"><i class="fas fa-align-center"></i></button>
+                </div>
+                <div id="editor-${i}" contenteditable="true" class="rich-content" oninput="updateBlock(${i}, this.innerHTML)">${block.content || ''}</div>
+            `;
+        } else if (block.type === 'image') {
+            content = block.content 
+                ? `<img src="${block.content}" class="w-full h-auto rounded mb-2 max-h-96 object-contain bg-gray-100">
+                   <button onclick="uploadBlockFile(${i}, this.previousElementSibling.previousElementSibling)" class="text-sm text-blue-600 hover:underline font-bold">Change Image</button>
+                   <input type="file" accept="image/*" class="hidden" onchange="uploadBlockFile(${i}, this)">`
+                : `<label class="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded cursor-pointer hover:bg-gray-50 transition">
+                       <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                       <span class="text-sm text-gray-500">Click to upload image</span>
+                       <input type="file" accept="image/*" class="hidden" onchange="uploadBlockFile(${i}, this)">
+                   </label>`;
+        } else if (block.type === 'video') {
+            content = `
+                <input type="text" value="${block.content || ''}" placeholder="Paste YouTube URL (e.g., https://youtube.com/watch?v=...)" 
+                    class="w-full border p-2 rounded mb-2 text-sm" oninput="updateBlock(${i}, this.value)">
+                ${block.content ? `<div class="embed-container"><iframe src="${block.content.replace('watch?v=', 'embed/')}" frameborder="0" allowfullscreen></iframe></div>` : ''}
+            `;
+        } else if (block.type === 'file') {
+            content = block.content 
+                ? `<div class="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded">
+                       <i class="fas fa-file text-blue-500 text-xl"></i>
+                       <div class="flex-1">
+                           <p class="font-bold text-sm text-blue-700">${block.name || 'File'}</p>
+                       </div>
+                       <button onclick="uploadBlockFile(${i}, this.nextElementSibling)" class="text-sm text-red-500 hover:underline font-bold">Remove</button>
+                       <input type="file" class="hidden" onchange="uploadBlockFile(${i}, this)">
+                   </div>`
+                : `<label class="flex flex-col items-center justify-center h-24 border-2 border-dashed rounded cursor-pointer hover:bg-gray-50 transition">
+                       <i class="fas fa-paperclip text-xl text-gray-400 mb-2"></i>
+                       <span class="text-sm text-gray-500">Click to upload file</span>
+                       <input type="file" class="hidden" onchange="uploadBlockFile(${i}, this)">
+                   </label>`;
+        }
+        
+        return `
+            <div class="module-block">
+                <div class="block-actions">
+                    ${i > 0 ? `<button onclick="moveBlock(${i}, -1)" class="w-6 h-6 bg-white border rounded hover:bg-gray-100 text-gray-500" title="Move Up"><i class="fas fa-arrow-up text-xs"></i></button>` : ''}
+                    ${i < builderBlocks.length - 1 ? `<button onclick="moveBlock(${i}, 1)" class="w-6 h-6 bg-white border rounded hover:bg-gray-100 text-gray-500" title="Move Down"><i class="fas fa-arrow-down text-xs"></i></button>` : ''}
+                    <button onclick="removeBlock(${i})" class="w-6 h-6 bg-red-100 border border-red-200 rounded hover:bg-red-200 text-red-600" title="Delete"><i class="fas fa-trash text-xs"></i></button>
+                </div>
+                ${content}
+            </div>
+        `;
+    }).join('');
+};
+
 // --- MODULE BUILDER ---
 window.openModuleBuilder = () => { builderBlocks = []; editingModuleId = null; currentView = 'module_builder'; render(); }
 window.editModule = (mid) => { const m = db.modules[currentCourseId].find(x=>x.id===mid); builderBlocks = JSON.parse(JSON.stringify(m.blocks)); editingModuleId = mid; $('mod-title-input') ? $('mod-title-input').value=m.title : null; currentView = 'module_builder'; render(); }
@@ -1852,6 +1925,7 @@ window.toLocalISOString = (dateStr) => {
     const pad = (n) => n < 10 ? '0' + n : n;
     return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
 }
+window.toLocalISO = window.toLocalISOString;  // Alias for backward compatibility
 
 window.saveActivityBuilt = async () => {
     const t=$('act-build-title').value, max=parseInt($('act-build-max').value), cat=$('act-build-cat').value, start=$('act-build-start').value, due=$('act-build-due').value;
@@ -2071,6 +2145,64 @@ window.execCmd = (i, cmd, val=null) => {
     if(el) {
         builderBlocks[i].content = el.innerHTML;
     }
+}
+
+
+// --- MODULE BUILDER RENDERER ---
+function renderModuleBuilder(c) {
+    const mod = editingModuleId ? db.modules[currentCourseId].find(m=>m.id===editingModuleId) : {};
+    c.innerHTML = `
+        <div class="max-w-4xl mx-auto pb-24">
+            <div class="theme-panel bg-white p-6 rounded shadow-sm border mb-6 sticky top-24 z-30">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex-1 mr-4">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Module Title</label>
+                        <input id="mod-title" value="${mod.title||''}" class="text-2xl font-bold bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none w-full" placeholder="e.g., Lesson 1: Introduction">
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="cancelModule()" class="px-4 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded border border-transparent hover:border-gray-200 transition">Cancel</button>
+                        <button id="btn-save-mod" onclick="saveModule()" class="btn-theme px-4 py-2 bg-green-600 text-white font-bold rounded shadow hover:shadow-lg transition">Save Module</button>
+                    </div>
+                </div>
+                <div class="flex gap-6 border-t pt-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Unlock Date</label>
+                        <input id="mod-unlock" type="datetime-local" value="${toLocalISO(mod.unlockDate)}" class="border p-2 rounded text-sm">
+                    </div>
+                    ${editingModuleId ? `<button onclick="deleteModule('${editingModuleId}')" class="ml-auto text-red-500 hover:text-red-700 text-xs font-bold uppercase"><i class="fas fa-trash mr-1"></i> Remove Module</button>` : ''}
+                </div>
+            </div>
+
+            <div class="flex justify-between items-end mb-4 px-2">
+                <div class="font-bold text-gray-500 uppercase text-xs tracking-wider">Module Content</div>
+            </div>
+
+            <div id="blocks-list" class="space-y-4"></div>
+
+            <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md border border-gray-200 p-2 rounded-full flex justify-center gap-2 shadow-xl z-50">
+                <button onclick="addBlock('text')" class="flex flex-col items-center justify-center w-16 h-14 hover:bg-blue-50 rounded-lg transition group">
+                    <i class="fas fa-font text-blue-500 text-lg group-hover:scale-110 transition-transform"></i>
+                    <span class="text-[10px] font-bold text-gray-600 mt-1">Text</span>
+                </button>
+                <div class="w-px bg-gray-200 my-2"></div>
+                <button onclick="addBlock('image')" class="flex flex-col items-center justify-center w-16 h-14 hover:bg-green-50 rounded-lg transition group">
+                    <i class="fas fa-image text-green-500 text-lg group-hover:scale-110 transition-transform"></i>
+                    <span class="text-[10px] font-bold text-gray-600 mt-1">Image</span>
+                </button>
+                <div class="w-px bg-gray-200 my-2"></div>
+                <button onclick="addBlock('video')" class="flex flex-col items-center justify-center w-16 h-14 hover:bg-red-50 rounded-lg transition group">
+                    <i class="fas fa-video text-red-500 text-lg group-hover:scale-110 transition-transform"></i>
+                    <span class="text-[10px] font-bold text-gray-600 mt-1">Video</span>
+                </button>
+                <div class="w-px bg-gray-200 my-2"></div>
+                <button onclick="addBlock('file')" class="flex flex-col items-center justify-center w-16 h-14 hover:bg-orange-50 rounded-lg transition group">
+                    <i class="fas fa-paperclip text-orange-500 text-lg group-hover:scale-110 transition-transform"></i>
+                    <span class="text-[10px] font-bold text-gray-600 mt-1">File</span>
+                </button>
+            </div>
+        </div>
+    `;
+    renderBlocks();
 }
 
 function renderActivityBuilder(c) {
