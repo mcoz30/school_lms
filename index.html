@@ -170,20 +170,23 @@
 </head>
 <body class="h-screen overflow-hidden text-sm font-sans">
 
-    <div id="loading-screen"><i class="fas fa-circle-notch fa-spin text-4xl"></i><p class="font-bold tracking-widest">CONNECTING...</p></div>
+    <p class="font-bold tracking-widest">LOADING...</p>
     <div id="toast-container" class="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
     <div id="sync-status"><i class="fas fa-save"></i> Saved</div>
     <div id="app" class="flex h-full w-full opacity-0 transition-opacity duration-500"></div>
     <div id="modal-portal" class="relative z-[60]"></div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@libsql/client-web@0.4.0/+esm';
 
-// --- SUPABASE CONFIGURATION ---
-const supabaseUrl = 'https://lgovvztkuqnpsshdrwyu.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxnb3Z2enRrdXFucHNzaGRyd3l1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMTY0OTgsImV4cCI6MjA4NTU5MjQ5OH0.0gks6pz9g8JCP6LMiKEGQj3J-M27ljGPLwv-umyoPVA';
+// --- TURSO CONFIGURATION ---
+const tursoUrl = 'libsql://schoollms-mcoz30.aws-ap-south-1.turso.io';
+const tursoToken = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzAyNTM1NjQsImlkIjoiMmE2YjA5ODMtZTgwNy00OTU4LWE5YmUtZjJhMTc3ZTNmMWEzIiwicmlkIjoiNGVkMGZmZjAtMzRkNS00YzBhLTliMzMtMmRiYTgxMWUwZjE3In0.eM21FQNmO5djrGaVUptwVZjkixTjmxOCc1kbBmhI5R2khoz_Y-b0qMsQ2efymR0hR-4vUDf8VCPp8MD0jQC-AA';
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const turso = createClient({
+    url: tursoUrl,
+    authToken: tursoToken,
+});
 
 // --- DATA STORE ---
 const defaultData = {
@@ -207,7 +210,7 @@ const defaultData = {
     theme: { appName: 'LearnNovaLMS', logoUrl: '', bgType: 'color', bgColor: '#F5F5F5', bgGradient: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', bgImage: '', glassEffect: false, glassOpacity: 0.95 }
 };
 
-let db = defaultData, currentUser = null, currentView = 'login', currentCourseId = null, activeExamId = null, currentTab = 'home', calendarDate = new Date(), importedText = '', tempPostImage = null, tempTeacherImage = null, adminCourseFilter = 'all', selectedLoginRole = null, supabaseUser = null; 
+let db = defaultData, currentUser = null, currentView = 'login', currentCourseId = null, activeExamId = null, currentTab = 'home', calendarDate = new Date(), importedText = '', tempPostImage = null, tempTeacherImage = null, adminCourseFilter = 'all', selectedLoginRole = null; 
 let builderBlocks = [], editingModuleId = null, editingActivityId = null;
 
 // --- PH HOLIDAYS ---
@@ -217,30 +220,34 @@ const phHolidays = [
     {m:10, d:2, t:'All Souls Day', c:'purple'}, {m:10, d:30, t:'Bonifacio Day', c:'red'}, {m:11, d:8, t:'Feast of Immaculate Conception', c:'blue'}, {m:11, d:25, t:'Christmas Day', c:'green'}, {m:11, d:30, t:'Rizal Day', c:'blue'}
 ];
 
-// --- SUPABASE SYNC ---
-async function initSupabase() {
+// --- TURSO SYNC ---
+async function initTurso() {
     try {
-        // Try to load data from Supabase
-        const { data: appData, error } = await supabase
-            .from('app_data')
-            .select('data')
-            .eq('id', 'master_record')
-            .single();
-        
-        if (error && error.code !== 'PGRST116') {
-            console.error("Supabase Error:", error);
-            // If table doesn't exist, we'll create it on first save
-        }
-        
-        if (appData && appData.data) {
-            db = appData.data;
+        // Create table if not exists
+        await turso.execute(`
+            CREATE TABLE IF NOT EXISTS app_data (
+                id TEXT PRIMARY KEY,
+                data TEXT,
+                updated_at TEXT
+            )
+        `);
+
+        // Try to load data from Turso
+        const result = await turso.execute({
+            sql: 'SELECT data FROM app_data WHERE id = ?',
+            args: ['master_record']
+        });
+
+        if (result.rows.length > 0 && result.rows[0].data) {
+            const savedData = JSON.parse(result.rows[0].data);
+            db = savedData;
             ['activities','activitySubmissions','modules','exams','examSubmissions','globalEvents'].forEach(k=>{
                 if(!db[k]) db[k] = (k==='activitySubmissions'||k==='examSubmissions') ? {} : [];
             });
             if(!db.theme) db.theme = defaultData.theme;
         } else {
             // Initialize with default data
-            console.log("Initializing with default data");
+            console.log(&quot;Initializing with default data&quot;);
             await saveDB();
         }
         
@@ -255,8 +262,8 @@ async function initSupabase() {
         
         if(!currentUser) render();
     } catch (e) {
-        console.error("Supabase Init Error:", e);
-        // If Supabase is not available, fall back to local mode
+        console.error(&quot;Turso Init Error:&quot;, e);
+        // If Turso is not available, fall back to local mode
         const l = $('loading-screen');
         if(l) {
             l.style.opacity=0;
@@ -269,39 +276,34 @@ async function initSupabase() {
 
 async function saveDB() {
     try {
-        const { error } = await supabase
-            .from('app_data')
-            .upsert({ 
-                id: 'master_record', 
-                data: db,
-                updated_at: new Date().toISOString()
-            }, { 
-                onConflict: 'id' 
-            });
+        const dataJson = JSON.stringify(db);
+        const now = new Date().toISOString();
         
-        if (error) {
-            console.error("Save Error:", error);
-            // If table doesn't exist, show a helpful message
-            if (error.code === '42P01') {
-                showToast('Database table not found. Please create app_data table in Supabase.', 'error');
-            } else {
-                showToast('Failed to save data: ' + error.message, 'error');
-            }
-        } else {
-            // Show sync indicator
-            const status = $('sync-status');
-            if(status) {
-                status.style.opacity = '1';
-                setTimeout(() => status.style.opacity = '0', 2000);
-            }
+        await turso.execute({
+            sql: `
+                INSERT INTO app_data (id, data, updated_at) 
+                VALUES (?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET 
+                    data = excluded.data,
+                    updated_at = excluded.updated_at
+            `,
+            args: ['master_record', dataJson, now]
+        });
+
+        // Show sync indicator
+        const status = $('sync-status');
+        if(status) {
+            status.style.opacity = '1';
+            setTimeout(() => status.style.opacity = '0', 2000);
         }
     } catch (e) {
-        console.error("Save Error:", e);
-        showToast('Failed to save data', 'error');
+        console.error(&quot;Save Error:&quot;, e);
+        showToast('Failed to save data: ' + e.message, 'error');
     }
 }
 
-initSupabase();
+initTurso();
+// Turso initialized
 
 // --- THEME ENGINE ---
 function applyTheme() {
@@ -483,7 +485,6 @@ window.loginAttempt = async () => {
     if(user) { 
         if (selectedLoginRole && user.role !== selectedLoginRole) return showToast(`Not a ${selectedLoginRole}`, 'error'); 
         currentUser = user;
-        supabaseUser = { id: user.id, email: user.username + '@school.local' };
         await saveDB(); // Save any pending changes
         goDashboard(); 
     } else showToast('Invalid credentials', 'error'); 
