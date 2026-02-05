@@ -177,16 +177,41 @@
     <div id="modal-portal" class="relative z-[60]"></div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@libsql/client-web@0.4.0/+esm';
 
 // --- TURSO CONFIGURATION ---
-const tursoUrl = 'libsql://schoollms-mcoz30.aws-ap-south-1.turso.io';
-const tursoToken = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzAyNTM1NjQsImlkIjoiMmE2YjA5ODMtZTgwNy00OTU4LWE5YmUtZjJhMTc3ZTNmMWEzIiwicmlkIjoiNGVkMGZmZjAtMzRkNS00YzBhLTliMzMtMmRiYTgxMWUwZjE3In0.eM21FQNmO5djrGaVUptwVZjkixTjmxOCc1kbBmhI5R2khoz_Y-b0qMsQ2efymR0hR-4vUDf8VCPp8MD0jQC-AA';
+const tursoUrl = 'https://schoollms-mcoz30.aws-ap-south-1.turso.io';
+const tursoAuthToken = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzAyNTM1NjQsImlkIjoiMmE2YjA5ODMtZTgwNy00OTU4LWE5YmUtZjJhMTc3ZTNmMWEzIiwicmlkIjoiNGVkMGZmZjAtMzRkNS00YzBhLTliMzMtMmRiYTgxMWUwZjE3In0.eM21FQNmO5djrGaVUptwVZjkixTjmxOCc1kbBmhI5R2khoz_Y-b0qMsQ2efymR0hR-4vUDf8VCPp8MD0jQC-AA';
 
-const turso = createClient({
-    url: tursoUrl,
-    authToken: tursoToken,
-});
+// Helper function to execute SQL via Turso HTTP API
+async function executeTurso(sql, params = []) {
+    try {
+        const response = await fetch(tursoUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${tursoAuthToken}`
+            },
+            body: JSON.stringify({
+                statements: [{
+                    q: sql,
+                    params: params
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            console.error('Turso API Error:', response.status, error);
+            throw new Error(`Turso API error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        return result.results[0];
+    } catch (e) {
+        console.error('Turso execute error:', e);
+        throw e;
+    }
+}
 
 // --- DATA STORE ---
 const defaultData = {
@@ -223,31 +248,35 @@ const phHolidays = [
 // --- TURSO SYNC ---
 async function initTurso() {
     try {
+        console.log('Initializing Turso database...');
+        
         // Create table if not exists
-        await turso.execute(`
+        await executeTurso(`
             CREATE TABLE IF NOT EXISTS app_data (
                 id TEXT PRIMARY KEY,
-                data TEXT,
-                updated_at TEXT
+                data TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             )
         `);
+        console.log('Table created or verified');
 
         // Try to load data from Turso
-        const result = await turso.execute({
-            sql: 'SELECT data FROM app_data WHERE id = ?',
-            args: ['master_record']
-        });
+        const result = await executeTurso(
+            'SELECT data FROM app_data WHERE id = ?',
+            ['master_record']
+        );
 
-        if (result.rows.length > 0 && result.rows[0].data) {
-            const savedData = JSON.parse(result.rows[0].data);
+        if (result && result.rows.length > 0) {
+            const savedData = JSON.parse(result.rows[0][0]);
             db = savedData;
             ['activities','activitySubmissions','modules','exams','examSubmissions','globalEvents'].forEach(k=>{
                 if(!db[k]) db[k] = (k==='activitySubmissions'||k==='examSubmissions') ? {} : [];
             });
             if(!db.theme) db.theme = defaultData.theme;
+            console.log('Data loaded from Turso');
         } else {
             // Initialize with default data
-            console.log(&quot;Initializing with default data&quot;);
+            console.log(&quot;No existing data, initializing with defaults&quot;);
             await saveDB();
         }
         
@@ -263,7 +292,8 @@ async function initTurso() {
         if(!currentUser) render();
     } catch (e) {
         console.error(&quot;Turso Init Error:&quot;, e);
-        // If Turso is not available, fall back to local mode
+        showToast('Database connection failed. Using local mode.', 'error');
+        // Fall back to local mode
         const l = $('loading-screen');
         if(l) {
             l.style.opacity=0;
@@ -279,17 +309,14 @@ async function saveDB() {
         const dataJson = JSON.stringify(db);
         const now = new Date().toISOString();
         
-        await turso.execute({
-            sql: `
-                INSERT INTO app_data (id, data, updated_at) 
-                VALUES (?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET 
-                    data = excluded.data,
-                    updated_at = excluded.updated_at
-            `,
-            args: ['master_record', dataJson, now]
-        });
+        // Using INSERT OR REPLACE for SQLite
+        await executeTurso(
+            'INSERT OR REPLACE INTO app_data (id, data, updated_at) VALUES (?, ?, ?)',
+            ['master_record', dataJson, now]
+        );
 
+        console.log('Data saved to Turso');
+        
         // Show sync indicator
         const status = $('sync-status');
         if(status) {
@@ -298,7 +325,7 @@ async function saveDB() {
         }
     } catch (e) {
         console.error(&quot;Save Error:&quot;, e);
-        showToast('Failed to save data: ' + e.message, 'error');
+        showToast('Failed to save to database: ' + e.message, 'error');
     }
 }
 
