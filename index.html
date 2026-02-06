@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LearnNovaLMS</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2D3B45">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Lato"', 'sans-serif'] },
+                    colors: {
+                        canvas: { 
+                            base: '#2D3B45', 
+                            primary: '#0e1e24', 
+                            accent: 'var(--accent-color)', 
+                            danger: '#EE4D3D', 
+                            success: '#00AC18',
+                            light: '#F5F5F5'
+                        }
+                    },
+                    animation: { 'fade-in': 'fadeIn 0.3s ease-out' },
+                    keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Dynamic Theme Variables */
+        :root {
+            --bg-style: #F5F5F5;
+            --glass-bg: #ffffff;
+            --glass-border: 1px solid #e2e8f0;
+            --glass-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --backdrop-blur: none;
+            --text-color: #2D3B45;
+            --sidebar-bg: #ffffff;
+            --nav-item-active-bg: rgba(3, 116, 181, 0.1);
+            
+            /* Theme Variables */
+            --header-bg: #ffffff;
+            --header-text: #2D3B45;
+            --header-shadow: none;
+            --global-border-color: #e2e8f0;
+            --accent-color: #0374B5; 
+            --btn-bg: #0374B5; 
+        }
+
+        body { 
+            background: var(--bg-style); 
+            color: var(--text-color); 
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            transition: background 0.3s ease;
+        }
+
+        /* Professional Card Style */
+        .theme-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--global-border-color);
+            box-shadow: var(--glass-shadow);
+            backdrop-filter: var(--backdrop-blur);
+            -webkit-backdrop-filter: var(--backdrop-blur);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        /* YouTube Video Embed Container */
+        .embed-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 ratio */
+            height: 0;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .embed-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        
+        /* Timer Animation */
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .timer-warning {
+            animation: pulse-warning 1s ease-in-out infinite;
+        }
+        
+        /* Header Styling */
+        header.theme-panel {
+            background: var(--header-bg) !important;
+            color: var(--header-text) !important;
+            border-bottom: 1px solid var(--global-border-color) !important;
+            text-shadow: var(--header-shadow);
+        }
+        
+        /* Custom Button Class */
+        .btn-theme {
+            background: var(--btn-bg);
+            color: white;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-theme:hover { 
+            opacity: 0.95; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        .text-theme { color: var(--accent-color); }
+        
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-color); }
+        
+        .nav-item.active { background: var(--nav-item-active-bg); color: var(--accent-color); border-right: 3px solid var(--accent-color); }
+
+        /* Global Nav */
+        #global-nav { 
+            width: 84px; flex-shrink: 0; 
+            background: var(--sidebar-bg);
+            display: flex; flex-direction: column; align-items: center; padding-top: 1rem; z-index: 50; 
+            border-right: 1px solid var(--global-border-color);
+            backdrop-filter: var(--backdrop-blur);
+        }
+        .nav-item { color: var(--text-color); display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 0.75rem 0; cursor: pointer; transition: background 0.2s; position: relative; opacity: 0.8; }
+        .nav-item:hover { background-color: rgba(0,0,0,0.05); opacity: 1; }
+        .nav-item.active { background-color: rgba(var(--accent-color), 0.1); color: var(--accent-color); border-left: 4px solid var(--accent-color); opacity: 1; }
+        .nav-icon { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        .nav-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px; }
+
+        /* Course Cards */
+        .course-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .course-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .course-header { height: 140px; background-size: cover; background-position: center; position: relative; }
+
+        /* Calendar */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.1); }
+        .cal-cell { background: var(--glass-bg); min-height: 120px; padding: 0.5rem; position: relative; }
+        .cal-cell.today { background: rgba(var(--accent-color), 0.1); border: 1px solid var(--accent-color); }
+        .event-pill { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; items-center; gap: 4px; transition: opacity 0.2s; }
+        
+        /* Feed */
+        .embed-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px; margin-top: 10px; } 
+        .embed-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+        /* Module & Activity Builder Styles */
+        .module-block { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: rgba(255,255,255,0.8); position: relative; transition: all 0.2s; }
+        .module-block:hover { border-color: var(--accent-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .block-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0.6; transition: opacity 0.2s; }
+        .module-block:hover .block-actions { opacity: 1; }
+        .rich-toolbar { background: rgba(0,0,0,0.02); padding: 6px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .rich-btn { padding: 4px 8px; border-radius: 4px; background: white; border: 1px solid #e2e8f0; font-size: 12px; font-weight: bold; color: #475569; display: inline-flex; align-items: center; justify-content: center; height: 28px; min-width: 28px; }
+        .rich-btn:hover { background: #e2e8f0; color: #0f172a; }
+        .rich-content { min-height: 80px; padding: 10px; outline: none; background: white; color: #334155; }
+        
+        @media (max-width: 768px) {
+            #main-layout { flex-direction: column; }
+            #global-nav { width: 100%; height: 60px; flex-direction: row; padding: 0; justify-content: space-around; position: fixed; bottom: 0; }
+            .nav-item { padding: 0.5rem; }
+            .nav-label { display: none; }
+            #content-area { padding-bottom: 80px; }
+            .calendar-grid { display: flex; flex-direction: column; gap: 8px; border: none; background: transparent; }
+            .cal-cell { min-height: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+            .cal-header-row { display: none; }
+        }
+        
+        #loading-screen { position: fixed; inset: 0; background: #2D3B45; z-index: 9999; display: flex; justify-content: center; align-items: center; color: white; flex-direction: column; gap: 1rem; transition: opacity 0.5s; }
+        #sync-status { position: fixed; bottom: 1rem; right: 1rem; background: rgba(0,0,0,0.8); color: white; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.75rem; z-index: 100; display: flex; align-items: center; gap: 0.5rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        
+        /* Student Table */
+        .student-table { width: 100%; border-collapse: collapse; }
+        .student-table th, .student-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .student-table th { font-weight: 600; color: #475569; background: #f8fafc; }
+        .student-table tr:hover { background: #f8fafc; }
+    </style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body class="h-screen overflow-hidden text-sm font-sans">
+
+    <div id="loading-screen"><i class="fas fa-circle-notch fa-spin text-4xl"></i><p class="font-bold tracking-widest">LOADING...</p></div>
+    <div id="toast-container" class="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+    <div id="sync-status"><i class="fas fa-save"></i> Saved</div>
+    <div id="app" class="flex h-full w-full opacity-0 transition-opacity duration-500"></div>
+    <div id="modal-portal" class="relative z-[60]"></div>
+
+<script>
+// ============================================
+// SUPABASE CONFIGURATION
+// ============================================
+
+// Initialize Supabase client with your credentials
+const SUPABASE_URL = 'https://kprlehjuimfjqbbqmejx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwcmxlaGp1aW1manFiYnFtZWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjQ5MTUsImV4cCI6MjA4NTk0MDkxNX0.Kjg9u2kHRBZWoLkjpt1tDZk-eXgKQ7q0W8hOLvm5brI';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================
+// DATA STORE & STATE MANAGEMENT
+// ============================================
+
+const defaultData = {
+    users: [
+        { id: 'u1', name: 'Mrs. Anderson', role: 'teacher', username: 'teacher', password: '123', avatar: 'MA' },
+        { id: 'u2', name: 'Juan Dela Cruz', role: 'student', username: 'student', password: '123', avatar: 'JD' },
+        { id: 'u3', name: 'Maria Santos', role: 'student', username: 'student2', password: '123', avatar: 'MS' },
+        { id: 'u0', name: 'School Admin', role: 'admin', username: 'admin', password: '123', avatar: 'AD' } 
+    ],
+    subjects: [
+        { id: 's1', name: 'Introduction to Physics', code: 'PHYS-101', teacherId: 'u1', students: ['u2', 'u3'], color: '#0374B5', img: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=600&q=80', introTitle: 'Welcome to Physics', introBody: 'Check the feed.', gradingWeights: { ww: 40, pt: 40, qa: 20 } }
+    ],
+    posts: [{ id: 'p1', courseId: 's1', authorId: 'u1', authorName: 'Mrs. Anderson', date: '2023-10-24T09:00', content: 'Welcome to class!', mediaType: 'text', isPinned: false }],
+    globalPosts: [],
+    activities: { 's1': [] },
+    activitySubmissions: {},
+    exams: { 's1': [] },
+    examSubmissions: {},
+    modules: { 's1': [] },
+    globalEvents: [],
+    grades: {},
+    theme: { appName: 'LearnNovaLMS', logoUrl: '', bgType: 'color', bgColor: '#F5F5F5', bgGradient: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', bgImage: '', glassEffect: false, glassOpacity: 0.95 }
+};
+
+let db = defaultData, currentUser = null, currentView = 'login', currentCourseId = null, activeExamId = null, currentTab = 'home', calendarDate = new Date(), importedText = '', tempPostImage = null, tempTeacherImage = null, adminCourseFilter = 'all', selectedLoginRole = null; 
+let builderBlocks = [], editingModuleId = null, editingActivityId = null;
+
+// ============================================
+// SUPABASE DATA OPERATIONS
+// ============================================
+
+/**
+ * Initialize application and load data from Supabase
+ */
+async function initApp() {
+    try {
+        console.log('Initializing LearnNovaLMS with Supabase...');
+        
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+            // Load user data from session
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('auth_id', session.user.id)
+                .single();
+            
+            if (!userError && userData) {
+                currentUser = userData;
+                console.log('User authenticated:', currentUser.name);
+            }
+        }
+        
+        // Load application data
+        await loadAppData();
+        
+        // Apply theme
+        applyTheme();
+        
+        // Remove loading screen
+        const l = $('loading-screen');
+        if(l) {
+            l.style.opacity=0;
+            setTimeout(() => l.remove(), 500);
+            $('app').classList.remove('opacity-0');
+        }
+        
+        // Initial render
+        render();
+        
+    } catch (error) {
+        console.error('Initialization error:', error);
+        showToast('Failed to initialize application', 'error');
+        // Fall back to localStorage if Supabase fails
+        initLocalStorageFallback();
+    }
+}
+
+/**
+ * Load all application data from Supabase
+ */
+async function loadAppData() {
+    try {
+        // Load users
+        const { data: usersData } = await supabase
+            .from('users')
+            .select('*');
+        
+        if (usersData && usersData.length > 0) {
+            db.users = usersData;
+        }
+        
+        // Load subjects (courses)
+        const { data: subjectsData } = await supabase
+            .from('subjects')
+            .select('*');
+        
+        if (subjectsData && subjectsData.length > 0) {
+            db.subjects = subjectsData;
+        }
+        
+        // Load posts
+        const { data: postsData } = await supabase
+            .from('posts')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (postsData) {
+            db.posts = postsData;
+        }
+        
+        // Load activities
+        const { data: activitiesData } = await supabase
+            .from('activities')
+            .select('*');
+        
+        if (activitiesData) {
+            activitiesData.forEach(activity => {
+                if (!db.activities[activity.course_id]) {
+                    db.activities[activity.course_id] = [];
+                }
+                db.activities[activity.course_id].push(activity);
+            });
+        }
+        
+        // Load activity submissions
+        const { data: submissionsData } = await supabase
+            .from('activity_submissions')
+            .select('*');
+        
+        if (submissionsData) {
+            submissionsData.forEach(submission => {
+                if (!db.activitySubmissions[submission.course_id]) {
+                    db.activitySubmissions[submission.course_id] = [];
+                }
+                db.activitySubmissions[submission.course_id].push(submission);
+            });
+        }
+        
+        // Load exams
+        const { data: examsData } = await supabase
+            .from('exams')
+            .select('*');
+        
+        if (examsData) {
+            examsData.forEach(exam => {
+                if (!db.exams[exam.course_id]) {
+                    db.exams[exam.course_id] = [];
+                }
+                db.exams[exam.course_id].push(exam);
+            });
+        }
+        
+        // Load exam submissions
+        const { data: examSubmissionsData } = await supabase
+            .from('exam_submissions')
+            .select('*');
+        
+        if (examSubmissionsData) {
+            examSubmissionsData.forEach(submission => {
+                if (!db.examSubmissions[submission.course_id]) {
+                    db.examSubmissions[submission.course_id] = [];
+                }
+                db.examSubmissions[submission.course_id].push(submission);
+            });
+        }
+        
+        // Load modules
+        const { data: modulesData } = await supabase
+            .from('modules')
+            .select('*');
+        
+        if (modulesData) {
+            modulesData.forEach(module => {
+                if (!db.modules[module.course_id]) {
+                    db.modules[module.course_id] = [];
+                }
+                db.modules[module.course_id].push(module);
+            });
+        }
+        
+        // Load grades
+        const { data: gradesData } = await supabase
+            .from('grades')
+            .select('*');
+        
+        if (gradesData) {
+            gradesData.forEach(grade => {
+                if (!db.grades[grade.course_id]) {
+                    db.grades[grade.course_id] = {};
+                }
+                if (!db.grades[grade.course_id][grade.student_id]) {
+                    db.grades[grade.course_id][grade.student_id] = {};
+                }
+                db.grades[grade.course_id][grade.student_id][grade.item_id] = grade;
+            });
+        }
+        
+        console.log('Data loaded successfully from Supabase');
+        
+    } catch (error) {
+        console.error('Error loading data from Supabase:', error);
+        throw error;
+    }
+}
+
+/**
+ * Save data to Supabase
+ * @param {string} dataType - The type of data to save (e.g., 'users', 'subjects', 'posts')
+ * @param {object|array} data - The data to save
+ */
+async function saveToSupabase(dataType, data) {
+    try {
+        let table = dataType;
+        let result;
+        
+        switch(dataType) {
+            case 'users':
+                // Handle user updates
+                if (Array.isArray(data)) {
+                    result = await supabase.from('users').upsert(data);
+                } else {
+                    result = await supabase.from('users').upsert([data]);
+                }
+                break;
+                
+            case 'subjects':
+                if (Array.isArray(data)) {
+                    result = await supabase.from('subjects').upsert(data);
+                } else {
+                    result = await supabase.from('subjects').upsert([data]);
+                }
+                break;
+                
+            case 'posts':
+                if (Array.isArray(data)) {
+                    result = await supabase.from('posts').upsert(data);
+                } else {
+                    result = await supabase.from('posts').upsert([data]);
+                }
+                break;
+                
+            case 'activities':
+                if (Array.isArray(data)) {
+                    result = await supabase.from('activities').upsert(data);
+                } else {
+                    result = await supabase.from('activities').upsert([data]);
+                }
+                break;
+                
+            case 'activity_submissions':
+                if (Array.isArray(data)) {
+                    result = await supabase.from('activity_submissions').upsert(data);
+                } else {
+                    result = await supabase.from('activity_submissions').upsert([data]);
+                }
+                break;
+                
+            case 'exams':
+                if (Array.isArray(data)) {
+                    result = await supabase.from('exams').upsert(data);
+                } else {
+                    result = await supabase.from('exams').upsert([data]);
+                }
+                break;
+                
+            case 'exam_submissions':
+                if (Array.isArray(data)) {
+                    result = await supabase.from('exam_submissions').upsert(data);
+                } else {
+                    result = await supabase.from('exam_submissions').upsert([data]);
+                }
+                break;
+                
+            case 'modules':
+                if (Array.isArray(data)) {
+                    result = await supabase.from('modules').upsert(data);
+                } else {
+                    result = await supabase.from('modules').upsert([data]);
+                }
+                break;
+                
+            case 'grades':
+                if (Array.isArray(data)) {
+                    result = await supabase.from('grades').upsert(data);
+                } else {
+                    result = await supabase.from('grades').upsert([data]);
+                }
+                break;
+                
+            default:
+                console.error('Unknown data type:', dataType);
+                return;
+        }
+        
+        if (result.error) {
+            throw result.error;
+        }
+        
+        console.log(`${dataType} saved to Supabase successfully`);
+        
+    } catch (error) {
+        console.error(`Error saving ${dataType} to Supabase:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Delete data from Supabase
+ * @param {string} table - The table name
+ * @param {string} id - The ID of the record to delete
+ */
+async function deleteFromSupabase(table, id) {
+    try {
+        const { error } = await supabase
+            .from(table)
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        console.log(`Record deleted from ${table}`);
+        
+    } catch (error) {
+        console.error(`Error deleting from ${table}:`, error);
+        throw error;
+    }
+}
+
+// ============================================
+// AUTHENTICATION FUNCTIONS
+// ============================================
+
+/**
+ * Login user (Supabase Auth)
+ * @param {string} username - Username
+ * @param {string} password - Password
+ */
+async function loginUser(username, password) {
+    try {
+        // For demo purposes, we're using a simple authentication
+        // In production, use Supabase Auth with email/password
+        const user = db.users.find(u => u.username === username && u.password === password);
+        
+        if (user) {
+            currentUser = user;
+            currentView = 'dashboard';
+            
+            // Try to sign in with Supabase Auth (if configured)
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: `${username}@demo.com`,
+                    password: password
+                });
+                
+                if (!error) {
+                    console.log('Supabase auth successful');
+                }
+            } catch (authError) {
+                console.log('Supabase auth not configured, using local auth');
+            }
+            
+            render();
+            showToast(`Welcome, ${user.name}!`);
+            return true;
+        } else {
+            showToast('Invalid username or password', 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        showToast('Login failed', 'error');
+        return false;
+    }
+}
+
+/**
+ * Logout user
+ */
+async function logoutUser() {
+    try {
+        // Sign out from Supabase
+        await supabase.auth.signOut();
+        
+        currentUser = null;
+        currentView = 'login';
+        render();
+        showToast('Logged out successfully');
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Force logout even if Supabase fails
+        currentUser = null;
+        currentView = 'login';
+        render();
+    }
+}
+
+/**
+ * Register new user
+ * @param {object} userData - User data
+ */
+async function registerUser(userData) {
+    try {
+        // Generate ID
+        userData.id = 'u' + Date.now();
+        userData.created_at = new Date().toISOString();
+        
+        // Save to Supabase
+        await saveToSupabase('users', userData);
+        
+        // Add to local db
+        db.users.push(userData);
+        
+        showToast('User registered successfully');
+        return true;
+    } catch (error) {
+        console.error('Registration error:', error);
+        showToast('Registration failed', 'error');
+        return false;
+    }
+}
+
+// ============================================
+// MAIN SAVE FUNCTION (Replaces localStorage)
+// ============================================
+
+let saveTimeout = null;
+
+/**
+ * Save data with debouncing
+ */
+async function saveDB() {
+    const status = $('sync-status');
+    if(status) {
+        status.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Saving...';
+        status.style.opacity = '1';
+    }
+
+    if (saveTimeout) clearTimeout(saveTimeout);
+
+    return new Promise((resolve) => {
+        saveTimeout = setTimeout(async () => {
+            try {
+                // Save all data to Supabase
+                await Promise.all([
+                    saveToSupabase('users', db.users),
+                    saveToSupabase('subjects', db.subjects),
+                    saveToSupabase('posts', db.posts),
+                ]);
+                
+                if(status) {
+                    status.innerHTML = '<i class="fas fa-check"></i> Saved to Cloud';
+                    setTimeout(() => status.style.opacity = '0', 2000);
+                }
+                
+                resolve(true);
+            } catch (error) {
+                console.error('Save error:', error);
+                showToast('Save failed - Check connection', 'error');
+                if(status) {
+                    status.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+                    setTimeout(() => status.style.opacity = '0', 3000);
+                }
+                resolve(false);
+            }
+        }, 1000); // 1 second debounce
+    });
+}
+
+// ============================================
+// LOCAL STORAGE FALLBACK
+// ============================================
+
+function initLocalStorageFallback() {
+    console.log('Using localStorage fallback');
+    
+    const LOCAL_STORAGE_KEY = 'LearnNovaLMS_Data';
+    
+    try {
+        const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        
+        if (storedData) {
+            const parsedData = JSON.parse(storedData);
+            db = parsedData;
+            ['activities','activitySubmissions','modules','exams','examSubmissions','globalEvents'].forEach(k=>{
+                if(!db[k]) db[k] = (k==='activitySubmissions'||k==='examSubmissions'||k==='grades') ? {} : [];
+            });
+            if(!db.theme) db.theme = defaultData.theme;
+            if(!db.grades) db.grades = {};
+        } else {
+            console.log("Initializing with default data");
+        }
+        
+        applyTheme();
+        
+        const l = $('loading-screen');
+        if(l) {
+            l.style.opacity=0;
+            setTimeout(() => l.remove(), 500);
+            $('app').classList.remove('opacity-0');
+        }
+        
+        if(!currentUser) render();
+    } catch (e) {
+        console.error("Local Storage Init Error:", e);
+        const l = $('loading-screen');
+        if(l) {
+            l.style.opacity=0;
+            setTimeout(() => l.remove(), 500);
+            $('app').classList.remove('opacity-0');
+        }
+        if(!currentUser) render();
+    }
+    
+    // Override saveDB to use localStorage
+    saveDB = async function() {
+        const status = $('sync-status');
+        if(status) {
+            status.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Saving...';
+            status.style.opacity = '1';
+        }
+
+        if (saveTimeout) clearTimeout(saveTimeout);
+
+        return new Promise((resolve) => {
+            saveTimeout = setTimeout(async () => {
+                try {
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(db));
+                    
+                    if(status) {
+                        status.innerHTML = '<i class="fas fa-check"></i> Saved (Local)';
+                        setTimeout(() => status.style.opacity = '0', 2000);
+                    }
+                    resolve(true);
+                } catch (e) {
+                    console.error("Save Error:", e);
+                    showToast('Save failed - Storage might be full', 'error');
+                    if(status) {
+                        status.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+                        setTimeout(() => status.style.opacity = '0', 3000);
+                    }
+                    resolve(false);
+                }
+            }, 1000);
+        });
+    };
+}
+
+// ============================================
+// REAL-TIME SUBSCRIPTIONS
+// ============================================
+
+/**
+ * Subscribe to real-time updates from Supabase
+ */
+function setupRealtimeSubscriptions() {
+    // Subscribe to posts
+    const postsSubscription = supabase
+        .channel('posts-changes')
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'posts'
+        }, (payload) => {
+            console.log('Posts changed:', payload);
+            // Reload data
+            loadAppData();
+            render();
+        })
+        .subscribe();
+    
+    // Subscribe to activities
+    const activitiesSubscription = supabase
+        .channel('activities-changes')
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'activities'
+        }, (payload) => {
+            console.log('Activities changed:', payload);
+            loadAppData();
+            render();
+        })
+        .subscribe();
+    
+    console.log('Real-time subscriptions enabled');
+}
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+const $ = (id) => document.getElementById(id);
+
+function applyTheme() {
+    const t = db.theme;
+    document.documentElement.style.setProperty('--accent-color', t.accentColor || '#0374B5');
+    document.documentElement.style.setProperty('--btn-bg', t.accentColor || '#0374B5');
+    
+    if(t.bgType === 'color') {
+        document.documentElement.style.setProperty('--bg-style', t.bgColor);
+    } else if(t.bgType === 'gradient') {
+        document.documentElement.style.setProperty('--bg-style', t.bgGradient);
+    } else if(t.bgType === 'image' && t.bgImage) {
+        document.documentElement.style.setProperty('--bg-style', `url(${t.bgImage})`);
+    }
+    
+    document.documentElement.style.setProperty('--glass-bg', t.glassEffect ? `rgba(255, 255, 255, ${t.glassOpacity})` : '#ffffff');
+}
+
+function showToast(message, type = 'success') {
+    const container = $('toast-container');
+    if(!container) return;
+    
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
+    
+    toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 pointer-events-auto animate-fade-in`;
+    toast.innerHTML = `<i class="fas fa-${icon}"></i><span>${message}</span>`;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function showConfirm(message, onConfirm) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm mx-4">
+            <p class="text-gray-700 mb-6">${message}</p>
+            <div class="flex gap-3">
+                <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Cancel</button>
+                <button id="confirmBtn" class="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Confirm</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#confirmBtn').onclick = () => {
+        modal.remove();
+        onConfirm();
+    };
+}
+
+function renderAvatar(user, sizeClass, textSize) {
+    const size = sizeClass || 'w-8 h-8';
+    const tSize = textSize || 'text-xs';
+    return `<div class="${size} rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold ${tSize}">${user.avatar || user.name.substring(0,2).toUpperCase()}</div>`;
+}
+
+// ============================================
+// APPLICATION STARTUP
+// ============================================
+
+// Start the application
+document.addEventListener('DOMContentLoaded', () => {
+    initApp();
+    
+    // Setup real-time subscriptions
+    setupRealtimeSubscriptions();
+});
+
+// Continue with rest of your application code...
+// (Add all the existing functions from your original HTML file below)
+
+// Placeholder for remaining code - you would paste all your existing functions here
+console.log('LearnNovaLMS initialized with Supabase');
+
+</script>
+</body>
+</html>

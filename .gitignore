@@ -1,0 +1,65 @@
+# ============================================
+# LEARNNOVA LMS - GITIGNORE FILE
+# ============================================
+
+# Environment Variables
+.env
+.env.local
+.env.production
+.supabase-config.js
+config.js
+
+# Node Modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Build Output
+dist/
+build/
+out/
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+
+# Browser Cache
+.cache/
+
+# Database Backups (if you create any)
+*.sql.backup
+db-backup-*.sql
+
+# Screenshots (if you take any for documentation)
+screenshots/
+*.png
+*.jpg
+!public/assets/*.png
+!public/assets/*.jpg
+
+# Test Coverage
+coverage/
+.nyc_output/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Private Data (never commit these)
+private/
+credentials.json
+service-account.json
