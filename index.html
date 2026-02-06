@@ -15,9 +15,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
     
-    <!-- Supabase Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <script>
         tailwind.config = {
             theme: {
@@ -33,14 +30,20 @@
                             light: '#F5F5F5'
                         }
                     },
-                    animation: { 'fade-in': 'fadeIn 0.3s ease-out' },
-                    keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
+                    animation: { 
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)' 
+                    },
+                    keyframes: { 
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+                    }
                 }
             }
         }
     </script>
-
     <style>
+
         /* Dynamic Theme Variables */
         :root {
             --bg-style: #F5F5F5;
@@ -192,36 +195,26 @@
             .cal-cell { min-height: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
             .cal-header-row { display: none; }
         }
-        
-        #loading-screen { position: fixed; inset: 0; background: #2D3B45; z-index: 9999; display: flex; justify-content: center; align-items: center; color: white; flex-direction: column; gap: 1rem; transition: opacity 0.5s; }
-        #sync-status { position: fixed; bottom: 1rem; right: 1rem; background: rgba(0,0,0,0.8); color: white; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.75rem; z-index: 100; display: flex; align-items: center; gap: 0.5rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
-        
-        /* Student Table */
-        .student-table { width: 100%; border-collapse: collapse; }
-        .student-table th, .student-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        .student-table th { font-weight: 600; color: #475569; background: #f8fafc; }
-        .student-table tr:hover { background: #f8fafc; }
+      
+        #loading-screen { position: fixed; inset: 0; background: #2D3B45; z-index: 9999; display: flex; justify-content: center; items-center; color: white; flex-direction: column; gap: 1rem; transition: opacity 0.5s; }
+        #sync-status { position: fixed; bottom: 1rem; right: 1rem; background: rgba(0,0,0,0.8); color: white; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.75rem; z-index: 100; display: flex; items-center; gap: 0.5rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
     </style>
-<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
 <body class="h-screen overflow-hidden text-sm font-sans">
 
-    <div id="loading-screen"><i class="fas fa-circle-notch fa-spin text-4xl"></i><p class="font-bold tracking-widest">LOADING...</p></div>
+    <div id="loading-screen"><i class="fas fa-circle-notch fa-spin text-4xl"></i><p class="font-bold tracking-widest">CONNECTING...</p></div>
     <div id="toast-container" class="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
     <div id="sync-status"><i class="fas fa-save"></i> Saved</div>
     <div id="app" class="flex h-full w-full opacity-0 transition-opacity duration-500"></div>
     <div id="modal-portal" class="relative z-[60]"></div>
 
-<script>
-// ============================================
-// SUPABASE CONFIGURATION
-// ============================================
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// --- SUPABASE CONFIGURATION ---
+const supabaseUrl = 'https://kprlehjuimfjqbbqmejx.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwcmxlaGp1aW1manFiYnFtZWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjQ5MTUsImV4cCI6MjA4NTk0MDkxNX0.Kjg9u2kHRBZWoLkjpt1tDZk-eXgKQ7q0W8hOLvm5brI';
 
-// Initialize Supabase client with your credentials
-const SUPABASE_URL = 'https://kprlehjuimfjqbbqmejx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwcmxlaGp1aW1manFiYnFtZWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjQ5MTUsImV4cCI6MjA4NTk0MDkxNX0.Kjg9u2kHRBZWoLkjpt1tDZk-eXgKQ7q0W8hOLvm5brI';
-
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ============================================
 // DATA STORE & STATE MANAGEMENT
